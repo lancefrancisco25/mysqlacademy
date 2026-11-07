@@ -54,7 +54,7 @@ export function LessonContent({
           </div>
 
           {section.code && (
-            <div className="rounded-lg border border-zinc-800 bg-[#0d0e12] overflow-hidden shadow-xs">
+            <div className="rounded-lg border border-border dark:border-zinc-800 bg-[#0d0e12] overflow-hidden shadow-xs">
               {/* Syntax Header */}
               <div className="flex items-center justify-between px-3 py-1.5 bg-[#14151a] border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400">
                 <span className="flex items-center gap-1.5">

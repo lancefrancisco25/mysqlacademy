@@ -95,7 +95,7 @@ export function CurriculumSidebar({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "h-full z-40 bg-[#0c0d10] border-r border-border flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out",
+          "h-full z-40 bg-card border-r border-border flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out",
           // Mobile: fixed drawer overlay
           "fixed md:static inset-y-0 left-0 w-80 max-w-[85vw] shadow-2xl md:shadow-none"
         )}
@@ -103,7 +103,7 @@ export function CurriculumSidebar({
         {/* Header */}
         <div className="p-4 border-b border-border/80 bg-muted/20 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400">
+            <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
               <BookOpen className="h-4 w-4" />
             </div>
             <div>
@@ -127,8 +127,8 @@ export function CurriculumSidebar({
         </div>
 
         {/* Overall Progress Bar */}
-        <div className="px-4 py-2 bg-zinc-950/40 border-b border-border/40">
-          <Progress value={overallPercent} className="h-1 bg-zinc-800" />
+        <div className="px-4 py-2 bg-muted/40 border-b border-border/40">
+          <Progress value={overallPercent} className="h-1" />
         </div>
 
         {/* Scrollable Tracks & Lessons Tree */}
@@ -194,7 +194,7 @@ export function CurriculumSidebar({
 
                 {/* Lessons in Track */}
                 {isExpanded && (
-                  <div className="border-t border-border/40 divide-y divide-border/30 bg-zinc-950/40">
+                  <div className="border-t border-border/40 divide-y divide-border/30 bg-muted/20 dark:bg-zinc-950/40">
                     {lessons.map((l, lIdx) => {
                       const isActive = l.slug === currentSlug;
                       const lessonProg = progress[l.slug];
@@ -214,18 +214,18 @@ export function CurriculumSidebar({
                           className={cn(
                             "flex items-center justify-between px-3 py-2 text-xs transition-all group",
                             isActive
-                              ? "bg-emerald-500/15 text-emerald-300 font-medium border-l-2 border-emerald-500 pl-2.5"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold border-l-2 border-emerald-500 pl-2.5"
                               : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
                           )}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             {isComplete ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                             ) : (
                               <Circle
                                 className={cn(
                                   "h-3.5 w-3.5 shrink-0",
-                                  isActive ? "text-emerald-400" : "text-muted-foreground/60"
+                                  isActive ? "text-emerald-500" : "text-muted-foreground/60"
                                 )}
                               />
                             )}
@@ -237,11 +237,11 @@ export function CurriculumSidebar({
 
                           <div className="shrink-0 ml-2">
                             {isComplete ? (
-                              <span className="text-[10px] text-emerald-400 font-mono">
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
                                 100%
                               </span>
                             ) : (
-                              <span className="text-[10px] font-mono text-zinc-500">
+                              <span className="text-[10px] font-mono text-muted-foreground">
                                 {tasksDone}/{l.tasks.length}
                               </span>
                             )}

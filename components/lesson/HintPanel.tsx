@@ -39,11 +39,11 @@ export function HintPanel() {
           <div
             key={i}
             className={cn(
-              "flex items-start gap-2 text-xs p-2 rounded animate-fade-in",
-              fb.type === "success" && "bg-emerald-500/10 text-emerald-400",
-              fb.type === "error" && "bg-red-500/10 text-red-400",
-              fb.type === "hint" && "bg-amber-500/10 text-amber-400",
-              fb.type === "info" && "bg-sky-500/10 text-sky-400"
+              "flex items-start gap-2 text-xs p-2 rounded-md border animate-fade-in",
+              fb.type === "success" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+              fb.type === "error" && "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+              fb.type === "hint" && "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/20",
+              fb.type === "info" && "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20"
             )}
           >
             {fb.type === "success" && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />}

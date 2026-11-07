@@ -69,15 +69,15 @@ export function SQLPipelineDiagram() {
   ];
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-[#0d0e12] p-5 space-y-4 my-6 shadow-sm">
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4 my-6 shadow-xs">
+      <div className="flex items-center justify-between border-b border-border/80 pb-3">
         <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-emerald-400" />
-          <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-200">
+          <Layers className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+          <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-foreground">
             SQL Execution Lifecycle Pipeline
           </h4>
         </div>
-        <span className="text-[11px] text-zinc-500 font-mono">
+        <span className="text-[11px] text-muted-foreground font-mono">
           Click any phase to inspect behavior
         </span>
       </div>
@@ -91,11 +91,11 @@ export function SQLPipelineDiagram() {
             className={cn(
               "p-2.5 rounded-lg border text-left transition-all",
               activeStep === i
-                ? "border-emerald-500 bg-emerald-500/10 text-white shadow-xs"
-                : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-white font-bold shadow-xs"
+                : "border-border bg-muted/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
             )}
           >
-            <div className="text-[10px] font-mono text-zinc-500 font-bold mb-1">
+            <div className="text-[10px] font-mono text-muted-foreground font-bold mb-1">
               Phase 0{s.num}
             </div>
             <div className="text-xs font-mono font-semibold truncate">
@@ -106,17 +106,17 @@ export function SQLPipelineDiagram() {
       </div>
 
       {/* Active Phase Details */}
-      <div className="rounded-lg border border-zinc-800/80 bg-zinc-950 p-4 space-y-2">
+      <div className="rounded-lg border border-border bg-muted/30 dark:bg-zinc-950 p-4 space-y-2">
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-400">
+          <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
             Step {steps[activeStep].num}: {steps[activeStep].name}
           </span>
-          <span className="text-xs text-zinc-300 font-medium">
+          <span className="text-xs text-foreground/90 font-medium">
             {steps[activeStep].desc}
           </span>
         </div>
-        <div className="text-xs text-amber-400/90 font-mono flex items-start gap-1.5 pt-1">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-400" />
+        <div className="text-xs text-amber-600 dark:text-amber-400 font-mono flex items-start gap-1.5 pt-1">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
           <span>Execution Rule: {steps[activeStep].rule}</span>
         </div>
       </div>
@@ -142,22 +142,22 @@ export function JoinVisualDiagram() {
   ];
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-[#0d0e12] p-5 space-y-4 my-6 shadow-sm">
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4 my-6 shadow-xs">
+      <div className="flex items-center justify-between border-b border-border/80 pb-3">
         <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-sky-400" />
-          <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-200">
+          <Database className="h-4 w-4 text-sky-500 dark:text-sky-400" />
+          <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-foreground">
             Visual Relational Join Simulator
           </h4>
         </div>
-        <div className="flex items-center gap-1 bg-zinc-900 p-0.5 rounded-lg border border-zinc-800">
+        <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border border-border">
           <button
             onClick={() => setJoinType("inner")}
             className={cn(
               "px-2.5 py-1 rounded text-xs font-mono transition-colors",
               joinType === "inner"
                 ? "bg-sky-600 text-white font-bold"
-                : "text-zinc-400 hover:text-zinc-200"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             INNER JOIN
@@ -168,7 +168,7 @@ export function JoinVisualDiagram() {
               "px-2.5 py-1 rounded text-xs font-mono transition-colors",
               joinType === "left"
                 ? "bg-emerald-600 text-white font-bold"
-                : "text-zinc-400 hover:text-zinc-200"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             LEFT JOIN
@@ -178,10 +178,10 @@ export function JoinVisualDiagram() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
         {/* Left Table */}
-        <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950 space-y-2">
-          <p className="font-semibold text-sky-400 flex items-center justify-between">
+        <div className="p-3 rounded-lg border border-border bg-muted/30 dark:bg-zinc-950 space-y-2">
+          <p className="font-semibold text-sky-600 dark:text-sky-400 flex items-center justify-between">
             <span>Left: customers</span>
-            <span className="text-[10px] text-zinc-500">PK: id</span>
+            <span className="text-[10px] text-muted-foreground">PK: id</span>
           </p>
           <div className="space-y-1.5">
             {customers.map((c) => (
@@ -190,54 +190,54 @@ export function JoinVisualDiagram() {
                 className={cn(
                   "p-2 rounded border text-[11px]",
                   c.id === 3 && joinType === "inner"
-                    ? "opacity-40 border-zinc-800 bg-zinc-900/30 line-through"
-                    : "border-sky-500/30 bg-sky-500/5 text-zinc-200"
+                    ? "opacity-40 border-border bg-muted/20 line-through"
+                    : "border-sky-500/30 bg-sky-500/10 text-foreground"
                 )}
               >
-                <span className="text-sky-300 font-bold">[{c.id}]</span> {c.name}
+                <span className="text-sky-600 dark:text-sky-300 font-bold">[{c.id}]</span> {c.name}
               </div>
             ))}
           </div>
         </div>
 
         {/* Right Table */}
-        <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950 space-y-2">
-          <p className="font-semibold text-emerald-400 flex items-center justify-between">
+        <div className="p-3 rounded-lg border border-border bg-muted/30 dark:bg-zinc-950 space-y-2">
+          <p className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
             <span>Right: orders</span>
-            <span className="text-[10px] text-zinc-500">FK: customer_id</span>
+            <span className="text-[10px] text-muted-foreground">FK: customer_id</span>
           </p>
           <div className="space-y-1.5">
             {orders.map((o) => (
               <div
                 key={o.orderId}
-                className="p-2 rounded border border-emerald-500/30 bg-emerald-500/5 text-zinc-200 text-[11px]"
+                className="p-2 rounded border border-emerald-500/30 bg-emerald-500/10 text-foreground text-[11px]"
               >
-                <span className="text-emerald-300 font-bold">{o.orderId}</span>: {o.item} (Cust #{o.customerId})
+                <span className="text-emerald-600 dark:text-emerald-300 font-bold">{o.orderId}</span>: {o.item} (Cust #{o.customerId})
               </div>
             ))}
           </div>
         </div>
 
         {/* Result Table */}
-        <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950 space-y-2">
-          <p className="font-semibold text-amber-400 flex items-center justify-between">
+        <div className="p-3 rounded-lg border border-border bg-muted/30 dark:bg-zinc-950 space-y-2">
+          <p className="font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
             <span>Result Stream</span>
-            <span className="text-[10px] text-zinc-500">
+            <span className="text-[10px] text-muted-foreground">
               {joinType === "inner" ? "3 Matched Rows" : "4 Rows (Includes NULL)"}
             </span>
           </p>
           <div className="space-y-1.5 text-[11px]">
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+            <div className="p-1.5 rounded bg-card border border-border text-foreground">
               Alice Chen $\to$ MacBook Pro
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+            <div className="p-1.5 rounded bg-card border border-border text-foreground">
               Alice Chen $\to$ Magic Mouse
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
+            <div className="p-1.5 rounded bg-card border border-border text-foreground">
               Bob Park $\to$ 4K Monitor
             </div>
             {joinType === "left" && (
-              <div className="p-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center justify-between">
+              <div className="p-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-between">
                 <span>Charlie Roy $\to$</span>
                 <span className="font-bold underline">NULL</span>
               </div>
@@ -246,14 +246,14 @@ export function JoinVisualDiagram() {
         </div>
       </div>
 
-      <p className="text-xs text-zinc-400 leading-relaxed font-sans pt-1">
+      <p className="text-xs text-muted-foreground leading-relaxed font-sans pt-1">
         {joinType === "inner" ? (
           <span>
-            💡 <strong>INNER JOIN Rule</strong>: Charlie Roy is discarded entirely because he has zero corresponding orders in the right table. Only records with bilateral matches survive.
+            💡 <strong className="text-foreground">INNER JOIN Rule</strong>: Charlie Roy is discarded entirely because he has zero corresponding orders in the right table. Only records with bilateral matches survive.
           </span>
         ) : (
           <span>
-            💡 <strong>LEFT JOIN Rule</strong>: Charlie Roy is preserved! Because he has no order, MySQL fills all missing order columns with <code className="text-amber-400">NULL</code>.
+            💡 <strong className="text-foreground">LEFT JOIN Rule</strong>: Charlie Roy is preserved! Because he has no order, MySQL fills all missing order columns with <code className="text-amber-600 dark:text-amber-400 font-bold">NULL</code>.
           </span>
         )}
       </p>
@@ -265,10 +265,10 @@ export function JoinVisualDiagram() {
 
 export function RelationalModelDiagram() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-[#0d0e12] p-5 space-y-4 my-6 shadow-sm font-mono">
-      <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-3">
-        <LinkIcon className="h-4 w-4 text-emerald-400" />
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-200">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4 my-6 shadow-xs font-mono">
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+        <LinkIcon className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">
           Relational Entity Links: Primary Key $\to$ Foreign Key
         </h4>
       </div>
@@ -277,19 +277,19 @@ export function RelationalModelDiagram() {
         {/* Parent Table */}
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-emerald-400 text-xs">Parent: departments</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Target</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">Parent: departments</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold">Target</span>
           </div>
           <div className="space-y-1 text-xs">
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-amber-400 font-bold">
+            <div className="p-2 rounded bg-card border border-border flex items-center justify-between shadow-xs">
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
                 <Key className="h-3 w-3" /> id (PK)
               </span>
-              <span className="text-zinc-500">INTEGER</span>
+              <span className="text-muted-foreground">INTEGER</span>
             </div>
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 flex items-center justify-between">
-              <span className="text-zinc-300">name</span>
-              <span className="text-zinc-500">VARCHAR(50)</span>
+            <div className="p-2 rounded bg-card border border-border flex items-center justify-between shadow-xs">
+              <span className="text-foreground">name</span>
+              <span className="text-muted-foreground">VARCHAR(50)</span>
             </div>
           </div>
         </div>
@@ -297,21 +297,21 @@ export function RelationalModelDiagram() {
         {/* Child Table */}
         <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-sky-400 text-xs">Child: staff</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300">References Parent</span>
+            <span className="font-bold text-sky-600 dark:text-sky-400 text-xs">Child: staff</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold">References Parent</span>
           </div>
           <div className="space-y-1 text-xs">
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-amber-400 font-bold">
+            <div className="p-2 rounded bg-card border border-border flex items-center justify-between shadow-xs">
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
                 <Key className="h-3 w-3" /> id (PK)
               </span>
-              <span className="text-zinc-500">INTEGER</span>
+              <span className="text-muted-foreground">INTEGER</span>
             </div>
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 flex items-center justify-between">
-              <span className="text-zinc-300">name</span>
-              <span className="text-zinc-500">VARCHAR(100)</span>
+            <div className="p-2 rounded bg-card border border-border flex items-center justify-between shadow-xs">
+              <span className="text-foreground">name</span>
+              <span className="text-muted-foreground">VARCHAR(100)</span>
             </div>
-            <div className="p-2 rounded bg-sky-500/10 border border-sky-500/30 flex items-center justify-between text-sky-300">
+            <div className="p-2 rounded bg-sky-500/10 border border-sky-500/30 flex items-center justify-between text-sky-700 dark:text-sky-300 shadow-xs">
               <span className="flex items-center gap-1.5 font-bold">
                 <LinkIcon className="h-3 w-3" /> department_id (FK)
               </span>
@@ -321,8 +321,8 @@ export function RelationalModelDiagram() {
         </div>
       </div>
 
-      <p className="text-xs text-zinc-400 font-sans leading-relaxed pt-1">
-        🧠 <strong>Integrity Guarantee</strong>: You can never assign a staff member to <code className="text-emerald-400">department_id = 99</code> if department #99 doesn&apos;t exist in the parent table. The database rejects it at the gate.
+      <p className="text-xs text-muted-foreground font-sans leading-relaxed pt-1">
+        🧠 <strong className="text-foreground">Integrity Guarantee</strong>: You can never assign a staff member to <code className="text-emerald-600 dark:text-emerald-400 font-bold">department_id = 99</code> if department #99 doesn&apos;t exist in the parent table. The database rejects it at the gate.
       </p>
     </div>
   );
@@ -332,11 +332,11 @@ export function RelationalModelDiagram() {
 
 export function BTreeDiagram() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-[#0d0e12] p-5 space-y-4 my-6 shadow-sm font-mono text-xs">
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4 my-6 shadow-xs font-mono text-xs">
+      <div className="flex items-center justify-between border-b border-border/80 pb-3">
         <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 text-amber-400" />
-          <h4 className="font-semibold uppercase tracking-wider text-zinc-200">
+          <Search className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+          <h4 className="font-semibold uppercase tracking-wider text-foreground">
             Query Performance: Full Table Scan vs B-Tree Index
           </h4>
         </div>
@@ -346,40 +346,40 @@ export function BTreeDiagram() {
         {/* Full Scan */}
         <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-red-400 flex items-center gap-1.5">
+            <span className="font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
               <XCircle className="h-4 w-4" /> Full Table Scan
             </span>
-            <span className="text-[10px] text-red-300 bg-red-500/20 px-2 py-0.5 rounded">
+            <span className="text-[10px] text-red-700 dark:text-red-300 bg-red-500/15 px-2 py-0.5 rounded font-semibold">
               Cost: $O(N)$
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-            Without an index on <code className="text-red-300">user_id</code>, the engine scans every single page from row 1 to row 10,000,000 looking for matches.
+          <p className="text-[11px] text-muted-foreground font-sans leading-relaxed">
+            Without an index on <code className="text-red-600 dark:text-red-300 font-bold">user_id</code>, the engine scans every single page from row 1 to row 10,000,000 looking for matches.
           </p>
           <div className="space-y-1 text-[11px]">
-            <div className="p-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-500">Row #1: user_id=14 (Mismatch)</div>
-            <div className="p-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-500">Row #2: user_id=89 (Mismatch)</div>
-            <div className="p-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-500">... Scanning 10M rows ...</div>
+            <div className="p-1 rounded bg-card border border-border text-muted-foreground">Row #1: user_id=14 (Mismatch)</div>
+            <div className="p-1 rounded bg-card border border-border text-muted-foreground">Row #2: user_id=89 (Mismatch)</div>
+            <div className="p-1 rounded bg-card border border-border text-muted-foreground">... Scanning 10M rows ...</div>
           </div>
         </div>
 
         {/* B-Tree Search */}
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4" /> B-Tree Index Lookup
             </span>
-            <span className="text-[10px] text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded">
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded font-semibold">
               Cost: $O(\log N)$
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-            With <code className="text-emerald-300">INDEX idx_user_id(user_id)</code>, the engine binary-searches balanced tree nodes, finding any row in ~3 pointer hops.
+          <p className="text-[11px] text-muted-foreground font-sans leading-relaxed">
+            With <code className="text-emerald-600 dark:text-emerald-300 font-bold">INDEX idx_user_id(user_id)</code>, the engine binary-searches balanced tree nodes, finding any row in ~3 pointer hops.
           </p>
           <div className="space-y-1 text-[11px]">
-            <div className="p-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">Root Node: user_id &gt; 50? Go Right</div>
-            <div className="p-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">Branch Node: user_id &lt; 75? Go Left</div>
-            <div className="p-1 rounded bg-emerald-500/20 border border-emerald-500/50 text-white font-bold">Leaf Found in 3 I/O cycles!</div>
+            <div className="p-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300">Root Node: user_id &gt; 50? Go Right</div>
+            <div className="p-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300">Branch Node: user_id &lt; 75? Go Left</div>
+            <div className="p-1 rounded bg-emerald-500/20 border border-emerald-500/50 text-emerald-800 dark:text-white font-bold">Leaf Found in 3 I/O cycles!</div>
           </div>
         </div>
       </div>
@@ -391,42 +391,42 @@ export function BTreeDiagram() {
 
 export function TransactionFlowDiagram() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-[#0d0e12] p-5 space-y-4 my-6 shadow-sm font-mono text-xs">
-      <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-3">
-        <GitBranch className="h-4 w-4 text-violet-400" />
-        <h4 className="font-semibold uppercase tracking-wider text-zinc-200">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4 my-6 shadow-xs font-mono text-xs">
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+        <GitBranch className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+        <h4 className="font-semibold uppercase tracking-wider text-foreground">
           ACID Transaction Lifecycle: All-Or-Nothing Atomicity
         </h4>
       </div>
 
       <div className="space-y-3">
-        <div className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-950 flex items-center gap-2 text-sky-400">
+        <div className="p-2.5 rounded-lg border border-border bg-muted/30 dark:bg-zinc-950 flex items-center gap-2 text-sky-600 dark:text-sky-400">
           <GitCommit className="h-4 w-4" />
           <span className="font-bold">1. START TRANSACTION;</span>
-          <span className="text-zinc-500 text-[11px]">— Open atomic isolation boundary</span>
+          <span className="text-muted-foreground text-[11px]">— Open atomic isolation boundary</span>
         </div>
 
-        <div className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-950 ml-4 space-y-1.5 text-zinc-300">
+        <div className="p-2.5 rounded-lg border border-border bg-muted/30 dark:bg-zinc-950 ml-4 space-y-1.5 text-foreground/90">
           <div>Step A: UPDATE accounts SET balance = balance - 500 WHERE holder = &apos;Alice&apos;;</div>
           <div>Step B: UPDATE accounts SET balance = balance + 500 WHERE holder = &apos;Bob&apos;;</div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 ml-4">
           <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-1">
-            <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+            <div className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5" /> Both Steps Succeeded
             </div>
-            <p className="text-[11px] text-zinc-400 font-sans">
-              Run <code className="text-emerald-300 font-mono">COMMIT;</code> $\to$ Changes written permanently to disk.
+            <p className="text-[11px] text-muted-foreground font-sans">
+              Run <code className="text-emerald-600 dark:text-emerald-300 font-mono font-bold">COMMIT;</code> $\to$ Changes written permanently to disk.
             </p>
           </div>
 
           <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 space-y-1">
-            <div className="font-bold text-red-400 flex items-center gap-1.5">
+            <div className="font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
               <ShieldAlert className="h-3.5 w-3.5" /> Crash / Constraint Failure
             </div>
-            <p className="text-[11px] text-zinc-400 font-sans">
-              Run <code className="text-red-300 font-mono">ROLLBACK;</code> $\to$ Reverts all changes back to initial state.
+            <p className="text-[11px] text-muted-foreground font-sans">
+              Run <code className="text-red-600 dark:text-red-300 font-mono font-bold">ROLLBACK;</code> $\to$ Reverts all changes back to initial state.
             </p>
           </div>
         </div>

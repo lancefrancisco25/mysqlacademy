@@ -107,13 +107,13 @@ export function ConceptPrimer({
 
         {/* ── 1. Real-World Analogy (The Mental Model) ───────────────── */}
         {lesson.analogy && (
-          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-6 sm:p-8 space-y-4 shadow-sm">
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 dark:bg-gradient-to-br dark:from-emerald-500/10 dark:via-emerald-500/5 dark:to-transparent p-6 sm:p-8 space-y-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">
                 💡
               </div>
               <div>
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                   Real-Life Analogy
                 </span>
                 <h3 className="text-xl font-bold tracking-tight text-foreground">
@@ -122,12 +122,12 @@ export function ConceptPrimer({
               </div>
             </div>
 
-            <p className="text-sm sm:text-base text-zinc-300 leading-relaxed font-sans whitespace-pre-line">
+            <p className="text-sm sm:text-base text-foreground/85 dark:text-zinc-300 leading-relaxed font-sans whitespace-pre-line">
               {lesson.analogy.story}
             </p>
 
-            <div className="pt-2 border-t border-emerald-500/20 flex items-start gap-2 text-xs sm:text-sm text-emerald-300 font-medium font-sans">
-              <span className="font-bold uppercase tracking-wider text-emerald-400">
+            <div className="pt-2 border-t border-emerald-500/20 flex items-start gap-2 text-xs sm:text-sm text-emerald-700 dark:text-emerald-300 font-medium font-sans">
+              <span className="font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                 Core Takeaway:
               </span>
               <span>{lesson.analogy.takeaway}</span>
@@ -194,15 +194,15 @@ export function ConceptPrimer({
 
         {/* ── 4. Memorization Booster & Mnemonics ────────────────────── */}
         {lesson.mnemonic && (
-          <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent p-6 sm:p-8 space-y-4">
+          <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 dark:bg-gradient-to-br dark:from-violet-500/10 dark:via-violet-500/5 dark:to-transparent p-6 sm:p-8 space-y-4">
             <div className="flex items-center gap-2.5">
-              <Brain className="h-5 w-5 text-violet-400" />
+              <Brain className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               <h3 className="text-lg font-bold tracking-tight text-foreground">
                 Memorization Trick &amp; Mental Anchor
               </h3>
             </div>
 
-            <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-950/40 font-mono text-sm sm:text-base text-violet-200 font-bold text-center">
+            <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-100/70 dark:bg-violet-950/40 font-mono text-sm sm:text-base text-violet-900 dark:text-violet-200 font-bold text-center">
               &ldquo;{lesson.mnemonic.phrase}&rdquo;
             </div>
 
@@ -210,12 +210,12 @@ export function ConceptPrimer({
               {lesson.mnemonic.breakdown.map((b, i) => (
                 <div
                   key={i}
-                  className="p-3 rounded-lg border border-violet-500/20 bg-zinc-950/60 text-center space-y-1"
+                  className="p-3 rounded-lg border border-violet-500/20 bg-card dark:bg-zinc-950/60 text-center space-y-1 shadow-xs"
                 >
-                  <div className="text-base font-extrabold text-violet-400 font-mono">
+                  <div className="text-base font-extrabold text-violet-600 dark:text-violet-400 font-mono">
                     {b.letter}
                   </div>
-                  <div className="text-xs font-semibold text-zinc-300 font-mono">
+                  <div className="text-xs font-semibold text-foreground dark:text-zinc-300 font-mono">
                     {b.word}
                   </div>
                   <div className="text-[10px] text-muted-foreground leading-tight">
@@ -225,8 +225,8 @@ export function ConceptPrimer({
               ))}
             </div>
 
-            <p className="text-xs sm:text-sm text-zinc-400 font-sans leading-relaxed pt-1">
-              🧠 <strong>Why this matters</strong>: {lesson.mnemonic.whyItMatters}
+            <p className="text-xs sm:text-sm text-muted-foreground font-sans leading-relaxed pt-1">
+              🧠 <strong className="text-foreground">Why this matters</strong>: {lesson.mnemonic.whyItMatters}
             </p>
           </div>
         )}
@@ -235,7 +235,7 @@ export function ConceptPrimer({
         {lesson.patterns && lesson.patterns.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-sky-400" />
+              <Search className="h-5 w-5 text-sky-500 dark:text-sky-400" />
               <h3 className="text-lg font-bold tracking-tight text-foreground">
                 Pattern Recognition: What to Reach For
               </h3>
@@ -245,17 +245,17 @@ export function ConceptPrimer({
               {lesson.patterns.map((p, i) => (
                 <div
                   key={i}
-                  className="rounded-xl border border-border bg-card/60 p-4 space-y-2"
+                  className="rounded-xl border border-border bg-card p-4 space-y-2 shadow-xs"
                 >
-                  <div className="text-amber-400 font-semibold flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <div className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     When you hear: &ldquo;{p.trigger}&rdquo;
                   </div>
-                  <div className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <div className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
                     <ArrowRight className="h-3 w-3 shrink-0" />
                     Pattern: {p.solution}
                   </div>
-                  <div className="text-zinc-400 text-[11px] bg-muted/30 p-2 rounded border border-border/50">
+                  <div className="text-muted-foreground text-[11px] bg-muted/50 p-2 rounded border border-border/50">
                     Example: {p.example}
                   </div>
                 </div>
@@ -268,14 +268,14 @@ export function ConceptPrimer({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {lesson.proTips && lesson.proTips.length > 0 && (
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5 space-y-3">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
                 <Lightbulb className="h-4 w-4" />
                 Senior Engineer Pro-Tips
               </h4>
-              <ul className="space-y-2 text-xs sm:text-sm text-zinc-300">
+              <ul className="space-y-2 text-xs sm:text-sm text-foreground/85 dark:text-zinc-300">
                 {lesson.proTips.map((tip, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span className="text-emerald-500 font-bold">✓</span>
                     <span>{tip}</span>
                   </li>
                 ))}
@@ -285,14 +285,14 @@ export function ConceptPrimer({
 
           {lesson.gotchas && lesson.gotchas.length > 0 && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-5 space-y-3">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-red-400 flex items-center gap-2">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 Common Pitfalls &amp; Gotchas
               </h4>
-              <ul className="space-y-2 text-xs sm:text-sm text-zinc-300">
+              <ul className="space-y-2 text-xs sm:text-sm text-foreground/85 dark:text-zinc-300">
                 {lesson.gotchas.map((trap, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-red-400 font-bold">✗</span>
+                    <span className="text-red-500 font-bold">✗</span>
                     <span>{trap}</span>
                   </li>
                 ))}
@@ -303,15 +303,15 @@ export function ConceptPrimer({
 
         {/* ── 7. Quick Intuition Checkpoint ──────────────────────────── */}
         {lesson.intuitionCheck && (
-          <div className="rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 via-sky-500/5 to-transparent p-6 sm:p-8 space-y-4">
+          <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 dark:bg-gradient-to-br dark:from-sky-500/10 dark:via-sky-500/5 dark:to-transparent p-6 sm:p-8 space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-sky-400" />
+              <Sparkles className="h-5 w-5 text-sky-500 dark:text-sky-400" />
               <h3 className="text-lg font-bold tracking-tight text-foreground">
                 Quick Intuition Check
               </h3>
             </div>
 
-            <p className="text-sm sm:text-base font-semibold text-zinc-200">
+            <p className="text-sm sm:text-base font-semibold text-foreground">
               {lesson.intuitionCheck.question}
             </p>
 
@@ -320,15 +320,15 @@ export function ConceptPrimer({
                 const isSelected = selectedOption === i;
                 const isCorrect = i === lesson.intuitionCheck?.correctIndex;
 
-                let stateClass = "border-zinc-800 bg-zinc-950 hover:border-zinc-700";
+                let stateClass = "border-border bg-card hover:bg-accent text-foreground";
                 if (hasAnswered) {
                   if (isCorrect) {
-                    stateClass = "border-emerald-500 bg-emerald-500/20 text-emerald-300 font-bold";
+                    stateClass = "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold";
                   } else if (isSelected) {
-                    stateClass = "border-red-500 bg-red-500/20 text-red-300";
+                    stateClass = "border-red-500 bg-red-500/15 text-red-700 dark:text-red-300";
                   }
                 } else if (isSelected) {
-                  stateClass = "border-sky-500 bg-sky-500/10";
+                  stateClass = "border-sky-500 bg-sky-500/10 text-foreground";
                 }
 
                 return (
@@ -340,16 +340,16 @@ export function ConceptPrimer({
                       setHasAnswered(true);
                     }}
                     className={cn(
-                      "w-full text-left p-3 rounded-lg border transition-all flex items-center justify-between",
+                      "w-full text-left p-3 rounded-lg border transition-all flex items-center justify-between shadow-xs",
                       stateClass
                     )}
                   >
                     <span>{opt}</span>
                     {hasAnswered && isCorrect && (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 ml-2" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0 ml-2" />
                     )}
                     {hasAnswered && isSelected && !isCorrect && (
-                      <XCircle className="h-4 w-4 text-red-400 shrink-0 ml-2" />
+                      <XCircle className="h-4 w-4 text-red-500 dark:text-red-400 shrink-0 ml-2" />
                     )}
                   </button>
                 );
@@ -357,8 +357,8 @@ export function ConceptPrimer({
             </div>
 
             {hasAnswered && (
-              <div className="p-4 rounded-xl border border-sky-500/30 bg-sky-950/40 text-xs sm:text-sm text-sky-200 leading-relaxed font-sans animate-fade-in">
-                💡 <strong>Explanation</strong>: {lesson.intuitionCheck.explanation}
+              <div className="p-4 rounded-xl border border-sky-500/30 bg-sky-100/70 dark:bg-sky-950/40 text-xs sm:text-sm text-sky-900 dark:text-sky-200 leading-relaxed font-sans animate-fade-in">
+                💡 <strong className="text-sky-950 dark:text-sky-100">Explanation</strong>: {lesson.intuitionCheck.explanation}
               </div>
             )}
           </div>

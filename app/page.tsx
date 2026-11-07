@@ -190,7 +190,7 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground mb-4">
                 Relational models, database scoping, CREATE TABLE, primary keys, nullability, and strict types.
               </p>
-              <ul className="text-xs space-y-1.5 text-zinc-400 font-mono">
+              <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> CREATE DATABASE / USE</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> INT, VARCHAR, DATE</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> PRIMARY KEY constraints</li>
@@ -206,7 +206,7 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground mb-4">
                 Batch INSERT operations, projection, complex WHERE predicates, updates, and atomic deletes.
               </p>
-              <ul className="text-xs space-y-1.5 text-zinc-400 font-mono">
+              <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Multi-row INSERT INTO</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> LIKE, BETWEEN, IN</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Targeted UPDATE / DELETE</li>
@@ -222,7 +222,7 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground mb-4">
                 Vector aggregations, GROUP BY bucketing, HAVING filters, INNER/LEFT joins, and nested subqueries.
               </p>
-              <ul className="text-xs space-y-1.5 text-zinc-400 font-mono">
+              <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> COUNT, SUM, AVG vector</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Multi-table INNER/LEFT JOIN</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Correlated subqueries</li>
@@ -238,7 +238,7 @@ export default function HomePage() {
               <p className="text-xs text-muted-foreground mb-4">
                 Schema evolution via ALTER TABLE, ACID transactional rollbacks, and B-Tree indexing plans.
               </p>
-              <ul className="text-xs space-y-1.5 text-zinc-400 font-mono">
+              <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> Online DDL ALTER TABLE</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> START TRANSACTION / COMMIT</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> B-Tree composite indexes</li>

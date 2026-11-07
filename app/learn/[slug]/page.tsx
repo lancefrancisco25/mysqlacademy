@@ -187,31 +187,33 @@ export default function LessonWorkspacePage() {
 
   // Right Workspace (Terminal + Live Schema Inspector)
   const rightPanel = (
-    <div className="h-full flex flex-col bg-[#09090b] text-[#d4d4d4] overflow-hidden">
+    <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
       {/* Workspace Tabs Header */}
-      <div className="h-11 px-3 border-b border-zinc-800 bg-[#121316] flex items-center justify-between shrink-0">
+      <div className="h-11 px-3 border-b border-border bg-card/80 dark:bg-[#121316] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-1">
           <button
             onClick={() => setActiveTab("terminal")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-mono font-medium transition-colors ${
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-colors",
               activeTab === "terminal"
-                ? "bg-[#1c1d22] text-white shadow-xs"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#18191e]"
-            }`}
+                ? "bg-accent dark:bg-[#1c1d22] text-foreground dark:text-white shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            )}
           >
-            <TerminalIcon className="h-3.5 w-3.5 text-sky-400" />
+            <TerminalIcon className="h-3.5 w-3.5 text-sky-500 dark:text-sky-400" />
             MySQL CLI (Interactive)
           </button>
 
           <button
             onClick={() => setActiveTab("schema")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-mono font-medium transition-colors ${
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-colors",
               activeTab === "schema"
-                ? "bg-[#1c1d22] text-white shadow-xs"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-[#18191e]"
-            }`}
+                ? "bg-accent dark:bg-[#1c1d22] text-foreground dark:text-white shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            )}
           >
-            <Rows3 className="h-3.5 w-3.5 text-emerald-400" />
+            <Rows3 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
             Live Schema &amp; Data
           </button>
         </div>
@@ -222,7 +224,7 @@ export default function LessonWorkspacePage() {
               dbReady ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
             }`}
           />
-          <span className={dbReady ? "text-zinc-400" : "text-amber-400"}>
+          <span className={dbReady ? "text-muted-foreground" : "text-amber-500"}>
             {dbReady ? "WASM Engine Online" : "Engine Initializing..."}
           </span>
         </div>
