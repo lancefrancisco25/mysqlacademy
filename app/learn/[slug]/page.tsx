@@ -14,6 +14,8 @@ import {
   Rows3,
   Layers,
   Code2,
+  PanelLeft,
+  PanelLeftClose,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,7 @@ import { SplitPane } from "@/components/lesson/SplitPane";
 import { TaskList } from "@/components/lesson/TaskList";
 import { LessonContent } from "@/components/lesson/LessonContent";
 import { ConceptPrimer } from "@/components/lesson/ConceptPrimer";
+import { CurriculumSidebar } from "@/components/lesson/CurriculumSidebar";
 import { SchemaViewer } from "@/components/lesson/SchemaViewer";
 import { HintPanel } from "@/components/lesson/HintPanel";
 import SQLTerminal from "@/components/terminal/SQLTerminal";
@@ -53,6 +56,14 @@ export default function LessonWorkspacePage() {
   const [viewMode, setViewMode] = useState<"concept" | "lab">("concept");
   const [activeTab, setActiveTab] = useState<"terminal" | "schema">("terminal");
   const [isResetting, setIsResetting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Auto-expand sidebar on larger desktop monitors
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1280) {
+      setIsSidebarOpen(true);
+    }
+  }, []);
 
   // Reset to concept mode when slug changes (so each lesson starts with the concept primer)
   useEffect(() => {
@@ -238,17 +249,41 @@ export default function LessonWorkspacePage() {
       <Header />
 
       {/* ── Subheader with Mode Switcher Bar ────────────────────────── */}
-      <div className="h-11 border-b border-border bg-card/60 backdrop-blur px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="h-11 border-b border-border bg-card/60 backdrop-blur px-3 sm:px-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          {/* Collapsible Curriculum Sidebar Trigger */}
+          <button
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono transition-colors border",
+              isSidebarOpen
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+            title={isSidebarOpen ? "Collapse curriculum sidebar" : "Expand curriculum sidebar"}
+            aria-label="Toggle Curriculum Sidebar"
+          >
+            {isSidebarOpen ? (
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            ) : (
+              <PanelLeft className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">Curriculum</span>
+          </button>
+
+          <span className="text-zinc-600 hidden sm:inline">/</span>
+
           <Link
             href="/learn"
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium shrink-0"
+            title="Back to All Tracks"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-            Curriculum
+            <span className="hidden md:inline">All Lessons</span>
           </Link>
-          <span className="text-zinc-600 hidden sm:inline">/</span>
-          <span className="text-xs font-semibold text-emerald-400 truncate max-w-[200px] sm:max-w-xs">
+
+          <span className="text-zinc-600 hidden md:inline">/</span>
+          <span className="text-xs font-semibold text-emerald-400 truncate max-w-[140px] sm:max-w-[200px] md:max-w-xs">
             {lesson.title}
           </span>
         </div>
@@ -307,27 +342,36 @@ export default function LessonWorkspacePage() {
         </div>
       </div>
 
-      {/* ── Main View: Full-Screen Concept Primer OR Split-Pane Lab ─── */}
-      <div className="flex-1 overflow-hidden">
-        {viewMode === "concept" ? (
-          <div className="h-full overflow-y-auto terminal-scrollbar">
-            <ConceptPrimer
-              lesson={lesson}
-              track={track}
-              onStartLab={() => setViewMode("lab")}
-              prevLesson={prevLesson}
-              nextLesson={nextLesson}
+      {/* ── Main Workspace Body with Collapsible Curriculum Sidebar ─── */}
+      <div className="flex-1 overflow-hidden flex relative min-h-0">
+        <CurriculumSidebar
+          currentSlug={slug}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+
+        {/* ── Main View: Full-Screen Concept Primer OR Split-Pane Lab ─── */}
+        <div className="flex-1 overflow-hidden flex flex-col min-w-0">
+          {viewMode === "concept" ? (
+            <div className="h-full overflow-y-auto terminal-scrollbar">
+              <ConceptPrimer
+                lesson={lesson}
+                track={track}
+                onStartLab={() => setViewMode("lab")}
+                prevLesson={prevLesson}
+                nextLesson={nextLesson}
+              />
+            </div>
+          ) : (
+            <SplitPane
+              left={leftPanel}
+              right={rightPanel}
+              defaultLeftWidth={42}
+              minLeftWidth={28}
+              maxLeftWidth={65}
             />
-          </div>
-        ) : (
-          <SplitPane
-            left={leftPanel}
-            right={rightPanel}
-            defaultLeftWidth={42}
-            minLeftWidth={28}
-            maxLeftWidth={65}
-          />
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
