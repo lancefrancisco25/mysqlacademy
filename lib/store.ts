@@ -34,6 +34,8 @@ interface LessonState {
   // Progress (persisted in localStorage)
   progress: Record<string, LessonProgress>;
   completeTask: (lessonSlug: string, taskId: string) => void;
+  toggleTask: (lessonSlug: string, taskId: string) => void;
+  verifyPendingTasks: () => void;
   isTaskCompleted: (lessonSlug: string, taskId: string) => boolean;
   getLessonProgress: (lessonSlug: string) => number; // 0-100
   getOverallStats: () => { completedLessons: number; totalTasksDone: number; masteryScore: number };
@@ -79,6 +81,13 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
   initDB: async (seedSQL?: string) => {
     set({ dbReady: false });
+    // Rehydrate progress from localStorage on client
+    if (typeof window !== "undefined") {
+      const saved = loadProgress();
+      if (Object.keys(saved).length > 0) {
+        set({ progress: saved });
+      }
+    }
     try {
       await initDatabase(seedSQL);
       set({ dbReady: true });
@@ -112,7 +121,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
   executeQuery: (sql: string) => {
     try {
-      const result = executeSQL(sql);
+      let result = executeSQL(sql);
       // Refresh schema after query execution
       get().refreshSchema();
 
@@ -136,7 +145,17 @@ export const useLessonStore = create<LessonState>((set, get) => ({
             // Announce next task if available
             const updatedProg = get().progress[lesson.slug]?.completedTaskIds || [];
             const nextTask = lesson.tasks.find((t) => !updatedProg.includes(t.id));
+
+            // Attach completed task info to result object so the terminal can print it
+            if (!result) {
+              result = {
+                columns: ["status"],
+                values: [["Query OK"]],
+              };
+            }
+            (result as any).newlyCompletedTask = task;
             if (nextTask) {
+              (result as any).nextTask = nextTask;
               get().addFeedback({
                 type: "info",
                 message: `Next Objective: ${nextTask.title}`,
@@ -181,20 +200,77 @@ export const useLessonStore = create<LessonState>((set, get) => ({
   progress: loadProgress(),
 
   completeTask: (lessonSlug: string, taskId: string) => {
-    const progress = { ...get().progress };
-    if (!progress[lessonSlug]) {
-      progress[lessonSlug] = {
-        lessonSlug,
-        completedTaskIds: [],
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    if (currentLessonProg.completedTaskIds.includes(taskId)) {
+      return;
+    }
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        ...currentLessonProg,
+        completedTaskIds: [...currentLessonProg.completedTaskIds, taskId],
         lastAccessed: Date.now(),
-      };
+      },
+    };
+
+    saveProgress(updatedProgress);
+    set({ progress: updatedProgress });
+  },
+
+  toggleTask: (lessonSlug: string, taskId: string) => {
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    const isDone = currentLessonProg.completedTaskIds.includes(taskId);
+    const updatedTaskIds = isDone
+      ? currentLessonProg.completedTaskIds.filter((id) => id !== taskId)
+      : [...currentLessonProg.completedTaskIds, taskId];
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        ...currentLessonProg,
+        completedTaskIds: updatedTaskIds,
+        lastAccessed: Date.now(),
+      },
+    };
+
+    saveProgress(updatedProgress);
+    set({ progress: updatedProgress });
+
+    if (!isDone) {
+      toast.success("Task marked complete");
     }
-    if (!progress[lessonSlug].completedTaskIds.includes(taskId)) {
-      progress[lessonSlug].completedTaskIds.push(taskId);
+  },
+
+  verifyPendingTasks: () => {
+    const lesson = get().currentLesson;
+    if (!lesson || !lesson.tasks) return;
+
+    let newlyDone = 0;
+    for (const task of lesson.tasks) {
+      if (get().isTaskCompleted(lesson.slug, task.id)) continue;
+      const validation = validateTask(task, "", null);
+      if (validation.passed) {
+        get().completeTask(lesson.slug, task.id);
+        newlyDone++;
+        toast.success(`✓ Task Verified: ${task.title}`);
+      }
     }
-    progress[lessonSlug].lastAccessed = Date.now();
-    saveProgress(progress);
-    set({ progress });
+    if (newlyDone === 0) {
+      toast.info("Database state checked. No pending tasks met verification criteria yet.");
+    }
   },
 
   isTaskCompleted: (lessonSlug: string, taskId: string) => {

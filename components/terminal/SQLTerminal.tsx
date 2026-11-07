@@ -136,6 +136,22 @@ export default function SQLTerminal() {
               });
             }
           }
+
+          // Real-time AI Grader feedback directly in terminal stream
+          if ((result as any)?.newlyCompletedTask) {
+            const task = (result as any).newlyCompletedTask;
+            addToHistory({
+              type: "success",
+              content: `\n[AI Grader] ✓ Objective Passed: ${task.title}!`,
+            });
+            if ((result as any)?.nextTask) {
+              const next = (result as any).nextTask;
+              addToHistory({
+                type: "hint",
+                content: `[Next Objective]: ${next.title}`,
+              });
+            }
+          }
         } else {
           addToHistory({ type: "success", content: "Query OK" });
         }

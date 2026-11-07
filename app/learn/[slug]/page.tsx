@@ -52,6 +52,11 @@ export default function LessonWorkspacePage() {
   const setCurrentLesson = useLessonStore((s) => s.setCurrentLesson);
   const dbReady = useLessonStore((s) => s.dbReady);
 
+  // Synchronously ensure active lesson is set on store
+  if (lesson && useLessonStore.getState().currentLesson?.slug !== lesson.slug) {
+    useLessonStore.setState({ currentLesson: lesson });
+  }
+
   // Dual-mode state: "concept" (full screen reading) vs "lab" (CLI split workspace)
   const [viewMode, setViewMode] = useState<"concept" | "lab">("concept");
   const [activeTab, setActiveTab] = useState<"terminal" | "schema">("terminal");

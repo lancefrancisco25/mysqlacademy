@@ -22,13 +22,15 @@ export function validateTask(
 ): ValidationResult {
   const rule = task.validation;
 
-  // 1. Verify student query pattern if specified
+  // 1. Verify student query pattern if specified (handles multi-line queries gracefully)
   if (rule.queryPattern) {
     const pattern =
       typeof rule.queryPattern === "string"
         ? new RegExp(rule.queryPattern, "i")
         : rule.queryPattern;
-    if (!pattern.test(query)) {
+    const raw = query || "";
+    const normalized = raw.replace(/\s+/g, " ").trim();
+    if (!pattern.test(raw) && !pattern.test(normalized)) {
       return {
         passed: false,
         reason:
@@ -91,7 +93,8 @@ export function validateTask(
 function validateTableExists(rule: ValidationRule): ValidationResult {
   if (!rule.table) return { passed: false, reason: "No table specified" };
   const tables = getTableNames();
-  if (tables.includes(rule.table)) {
+  const lowerTarget = rule.table.toLowerCase();
+  if (tables.some((t) => t.toLowerCase() === lowerTarget)) {
     return { passed: true };
   }
   return {
@@ -103,7 +106,8 @@ function validateTableExists(rule: ValidationRule): ValidationResult {
 function validateTableNotExists(rule: ValidationRule): ValidationResult {
   if (!rule.table) return { passed: false, reason: "No table specified" };
   const tables = getTableNames();
-  if (!tables.includes(rule.table)) {
+  const lowerTarget = rule.table.toLowerCase();
+  if (!tables.some((t) => t.toLowerCase() === lowerTarget)) {
     return { passed: true };
   }
   return {
@@ -115,7 +119,9 @@ function validateTableNotExists(rule: ValidationRule): ValidationResult {
 function validateColumnExists(rule: ValidationRule): ValidationResult {
   if (!rule.table || !rule.column)
     return { passed: false, reason: "No table/column specified" };
-  const info = getTableInfo(rule.table);
+  const tables = getTableNames();
+  const matchedTable = tables.find((t) => t.toLowerCase() === rule.table!.toLowerCase()) || rule.table;
+  const info = getTableInfo(matchedTable);
   if (!info) return { passed: false, reason: `Table '${rule.table}' not found` };
   const colNames = info.values.map((r) => String(r[1]).toLowerCase());
   if (colNames.includes(rule.column.toLowerCase())) {
@@ -133,7 +139,9 @@ function validateRowCount(rule: ValidationRule): ValidationResult {
   if (rule.expectedCount === undefined)
     return { passed: false, reason: "No expectedCount specified" };
 
-  const data = getTableData(rule.table);
+  const tables = getTableNames();
+  const matchedTable = tables.find((t) => t.toLowerCase() === rule.table!.toLowerCase()) || rule.table;
+  const data = getTableData(matchedTable);
   const actual = data ? data.values.length : 0;
   if (actual === rule.expectedCount) {
     return { passed: true };
@@ -150,7 +158,9 @@ function validateRowCountGte(rule: ValidationRule): ValidationResult {
   if (rule.expectedCount === undefined)
     return { passed: false, reason: "No expectedCount specified" };
 
-  const data = getTableData(rule.table);
+  const tables = getTableNames();
+  const matchedTable = tables.find((t) => t.toLowerCase() === rule.table!.toLowerCase()) || rule.table;
+  const data = getTableData(matchedTable);
   const actual = data ? data.values.length : 0;
   if (actual >= rule.expectedCount) {
     return { passed: true };
@@ -169,7 +179,6 @@ function validateValueCheck(rule: ValidationRule): ValidationResult {
     const result = executeSQL(rule.query);
     if (!result) return { passed: false, reason: "Query returned no result" };
 
-    // Simple deep comparison of first few rows
     const actual = result.values;
     const expected = rule.expectedResult;
 
@@ -182,7 +191,9 @@ function validateValueCheck(rule: ValidationRule): ValidationResult {
 
     for (let i = 0; i < expected.length; i++) {
       for (let j = 0; j < expected[i].length; j++) {
-        if (String(actual[i]?.[j]) !== String(expected[i][j])) {
+        const aVal = String(actual[i]?.[j] ?? "").trim().toLowerCase();
+        const eVal = String(expected[i]?.[j] ?? "").trim().toLowerCase();
+        if (aVal !== eVal) {
           return {
             passed: false,
             reason: rule.description || `Row ${i + 1} does not match expected values.`,

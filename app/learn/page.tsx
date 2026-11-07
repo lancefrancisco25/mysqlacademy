@@ -39,6 +39,14 @@ export default function LearnDashboardPage() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("mysql-academy-progress");
+        if (saved) {
+          useLessonStore.setState({ progress: JSON.parse(saved) });
+        }
+      } catch {}
+    }
   }, []);
 
   const stats = mounted

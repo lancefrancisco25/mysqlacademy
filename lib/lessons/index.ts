@@ -362,7 +362,12 @@ export const LESSONS: Lesson[] = [
         title: "Inspect products table data types",
         description: "Run DESCRIBE products; to verify column types: id, name, price, in_stock, created_at.",
         hint: "DESCRIBE products;",
-        validation: { type: "column_exists", table: "products", column: "created_at" },
+        validation: {
+          type: "column_exists",
+          queryPattern: /^(?:DESCRIBE|DESC)\s+products\s*;?$/i,
+          table: "products",
+          column: "created_at",
+        },
       },
       {
         id: "dt-2",
