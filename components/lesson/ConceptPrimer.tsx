@@ -29,6 +29,9 @@ import {
   BTreeDiagram,
   TransactionFlowDiagram,
 } from "./Diagrams";
+import { DragBlockExercise } from "./DragBlockExercise";
+import { ScenarioExercise } from "./ScenarioExercise";
+import { CheckpointExam } from "./CheckpointExam";
 import type { Lesson, TrackInfo } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -364,7 +367,40 @@ export function ConceptPrimer({
           </div>
         )}
 
-        {/* ── 8. Call to Action: Launch Lab ──────────────────────────── */}
+        {/* ── 8. Interactive Hands-on Exercises (Drag & Drop / Scenarios) ── */}
+        {lesson.exercises && lesson.exercises.length > 0 && (
+          <div className="space-y-8">
+            <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+              <Sparkles className="h-5 w-5 text-sky-500" />
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Hands-On Interactive Practice
+              </h2>
+            </div>
+
+            {lesson.exercises.map((exercise, idx) => (
+              <div key={exercise.id || idx}>
+                {exercise.type === "drag-block" && (
+                  <DragBlockExercise exercise={exercise} />
+                )}
+                {exercise.type === "scenario" && (
+                  <ScenarioExercise exercise={exercise} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── 9. Final Lesson Checkpoint Exam ───────────────────────── */}
+        {lesson.checkpointExam && (
+          <CheckpointExam
+            exam={lesson.checkpointExam}
+            nextLessonSlug={nextLesson?.slug}
+            nextLessonTitle={nextLesson?.title}
+            onOpenLab={onStartLab}
+          />
+        )}
+
+        {/* ── 10. Call to Action: Launch Lab ──────────────────────────── */}
         <div className="rounded-2xl border border-emerald-500/40 bg-card p-8 text-center space-y-4 shadow-xl">
           <h3 className="text-2xl font-bold tracking-tight">
             Ready to Build Muscle Memory?

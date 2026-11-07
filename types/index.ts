@@ -80,6 +80,67 @@ export interface IntuitionCheck {
   explanation: string;
 }
 
+// ─── Interactive Exercises ────────────────────────────────────────────────
+
+export interface DragBlock {
+  id: string;
+  text: string;
+}
+
+export interface DragBlockExercise {
+  type: "drag-block";
+  id: string;
+  title: string;
+  instructions: string;
+  scenarioContext?: string;
+  blocks: DragBlock[];
+  solution: string[];
+  hint?: string;
+  explanation: string;
+}
+
+export interface ScenarioRequirement {
+  id: string;
+  text: string;
+  hint?: string;
+  validationRule?: ValidationRule;
+}
+
+export interface ScenarioExercise {
+  type: "scenario";
+  id: string;
+  title: string;
+  companyOrContext: string;
+  problemStatement: string;
+  requirements: ScenarioRequirement[];
+  starterSQL?: string;
+  solutionSQL: string;
+  solutionExplanation: string;
+}
+
+export type LessonExercise = DragBlockExercise | ScenarioExercise;
+
+// ─── Checkpoint Exam ──────────────────────────────────────────────────────
+
+export interface CheckpointQuestion {
+  id: string;
+  title: string;
+  prompt: string;
+  hint?: string;
+  starterSQL?: string;
+  solutionSQL?: string;
+  validation: ValidationRule;
+}
+
+export interface CheckpointExam {
+  id: string;
+  title: string;
+  subtitle?: string;
+  scenarioContext: string;
+  passingScoreDescription?: string;
+  questions: CheckpointQuestion[];
+}
+
 export interface Lesson {
   slug: string;
   title: string;
@@ -96,6 +157,8 @@ export interface Lesson {
   gotchas?: string[];
   diagramType?: "pipeline" | "join" | "relations" | "btree" | "transactions";
   intuitionCheck?: IntuitionCheck;
+  exercises?: LessonExercise[];
+  checkpointExam?: CheckpointExam;
 }
 
 // ─── Terminal ──────────────────────────────────────────────────────────────
