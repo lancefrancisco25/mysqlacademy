@@ -79,19 +79,19 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-medium tracking-wide">
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Browser-Native In-Memory WebAssembly Engine</span>
+            <span>Free for Students • Runs 100% in Your Browser</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-foreground font-sans">
-            Master MySQL. <br />
+            Learn MySQL by Writing Real Queries. <br />
             <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent">
-              Zero Latency. Zero Setup.
+              Zero Setup Needed.
             </span>
           </h1>
 
           <p className="max-w-2xl mx-auto text-base sm:text-lg text-muted-foreground leading-relaxed">
-            A production-grade, interactive lab platform modeled after Cisco NetAcad packet tracers.
-            Powered by client-side WebAssembly SQL and autonomous pedagogical AI mentors.
+            Practice database skills right in your browser with immediate feedback and smart, guided hints.
+            No Docker, no command-line setup, and no paywalls.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -106,7 +106,7 @@ export default function HomePage() {
             </Link>
             <Link href="/learn">
               <Button size="lg" variant="outline" className="border-border text-foreground hover:bg-accent font-medium">
-                Explore Curriculum
+                View Curriculum Roadmap
               </Button>
             </Link>
           </div>
@@ -163,7 +163,7 @@ export default function HomePage() {
               )}
             </div>
             <p className="text-[11px] text-muted-foreground text-center mt-2.5 font-sans">
-              100% client-side WebAssembly execution. No backend round-trips.
+              Type real SQL, hit run, and see your tables update immediately.
             </p>
           </div>
         </div>
@@ -176,9 +176,9 @@ export default function HomePage() {
             <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-xs px-3 py-1 font-mono">
               CURRICULUM SYLLABUS
             </Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Structured Path to Database Mastery</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Structured Path to SQL Confidence</h2>
             <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto">
-              Progress through hands-on pedagogical stages engineered to build true relational intuition.
+              Four progressive stages designed to take you from your first table to writing production-ready queries.
             </p>
           </div>
 
@@ -189,14 +189,14 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-sm mb-3">
                 1
               </div>
-              <h3 className="font-semibold text-base mb-1">Fundamentals</h3>
+              <h3 className="font-semibold text-base mb-1">Stage 1: The Basics</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Relational models, database scoping, CREATE TABLE, primary keys, nullability, and strict types.
+                How databases organize data, creating your first tables, and primary keys.
               </p>
               <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> CREATE DATABASE / USE</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> INT, VARCHAR, DATE</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> PRIMARY KEY constraints</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Tables, Rows &amp; Columns</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Primary Keys &amp; Data Types</li>
               </ul>
             </div>
 
@@ -205,14 +205,14 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center font-bold text-sm mb-3">
                 2
               </div>
-              <h3 className="font-semibold text-base mb-1">Intermediate CRUD</h3>
+              <h3 className="font-semibold text-base mb-1">Stage 2: Finding &amp; Editing Data</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Batch INSERT operations, projection, complex WHERE predicates, updates, and atomic deletes.
+                Filtering records (WHERE), searching text (LIKE), and updating or deleting rows safely.
               </p>
               <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Multi-row INSERT INTO</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> LIKE, BETWEEN, IN</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Targeted UPDATE / DELETE</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Adding Data (INSERT INTO)</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Filtering (WHERE &amp; LIKE)</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-sky-500" /> Safe UPDATE &amp; DELETE</li>
               </ul>
             </div>
 
@@ -221,14 +221,14 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center font-bold text-sm mb-3">
                 3
               </div>
-              <h3 className="font-semibold text-base mb-1">Advanced Joins</h3>
+              <h3 className="font-semibold text-base mb-1">Stage 3: Connecting Tables</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Vector aggregations, GROUP BY bucketing, HAVING filters, INNER/LEFT joins, and nested subqueries.
+                Combining data across multiple sheets with JOINs and calculating sums, counts, and averages.
               </p>
               <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> COUNT, SUM, AVG vector</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Multi-table INNER/LEFT JOIN</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Correlated subqueries</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Multi-Table INNER / LEFT JOIN</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Summaries (COUNT, SUM, AVG)</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-violet-500" /> Grouping with GROUP BY</li>
               </ul>
             </div>
 
@@ -237,14 +237,14 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-sm mb-3">
                 4
               </div>
-              <h3 className="font-semibold text-base mb-1">Optimization & ACID</h3>
+              <h3 className="font-semibold text-base mb-1">Stage 4: Speed &amp; Safety</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Schema evolution via ALTER TABLE, ACID transactional rollbacks, and B-Tree indexing plans.
+                Making queries fast with indexes and protecting information using transactions (COMMIT &amp; ROLLBACK).
               </p>
               <ul className="text-xs space-y-1.5 text-muted-foreground font-mono">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> Online DDL ALTER TABLE</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> START TRANSACTION / COMMIT</li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> B-Tree composite indexes</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> Changing Tables (ALTER TABLE)</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> Transactions (COMMIT / ROLLBACK)</li>
+                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-amber-500" /> High-Speed B-Tree Indexes</li>
               </ul>
             </div>
           </div>
@@ -255,9 +255,9 @@ export default function HomePage() {
       <section className="py-20 border-b border-border/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center space-y-3 mb-14">
-            <h2 className="text-3xl font-bold tracking-tight">Engineered for Deep Retention</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Why Learn SQL Here?</h2>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              Modeled after hardware packet-tracer labs: zero setup friction, real CLI muscle memory, and real-time state introspection.
+              Built like a hands-on coding lab: zero setup friction, real muscle memory, and clear visual feedback.
             </p>
           </div>
 
@@ -266,9 +266,9 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
                 <Cpu className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-base">In-Browser WASM Engine</h3>
+              <h3 className="font-semibold text-base">Instant Browser Labs</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Full SQL execution engine compiled to WebAssembly. Zero network latency, offline-capable, and completely private.
+                Everything executes locally on your device—no servers to spin up or break.
               </p>
             </div>
 
@@ -276,9 +276,9 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
                 <TerminalIcon className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-base">Authentic MySQL CLI</h3>
+              <h3 className="font-semibold text-base">Real Practice Terminal</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Terminal emulator supporting history navigation (Up/Down), SQL keyword tab completion, multiline buffers, and ASCII tables.
+                Gain muscle memory with a realistic SQL command line featuring arrow-key history and tab completion.
               </p>
             </div>
 
@@ -286,9 +286,9 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
                 <Database className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-base">Real-Time Schema Visualizer</h3>
+              <h3 className="font-semibold text-base">Live Visual Table Inspector</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Inspect active table schemas, column data types, nullability, row counts, and live tabular data that auto-refreshes on every DDL/DML.
+                Watch schemas and rows automatically reflect your changes after every query.
               </p>
             </div>
 
@@ -296,9 +296,9 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-base">Autonomous AI Agents</h3>
+              <h3 className="font-semibold text-base">Smart Socratic Guidance</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Pedagogical grader checks state invariants (not brittle regex matches). Socratic mentor intercepts syntax and runtime errors with guided hints.
+                Receive targeted hints for syntax errors rather than generic failure messages.
               </p>
             </div>
           </div>
@@ -309,15 +309,15 @@ export default function HomePage() {
       <section className="py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-6">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Ready to master relational databases?
+            Ready to write your first SQL query?
           </h2>
           <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto">
-            Step directly into the CLI sandbox. No database provisioning, Docker containers, or configuration required.
+            Jump into the sandbox and test your skills immediately—no sign-up required.
           </p>
           <div className="pt-2">
             <Link href="/learn">
-              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-medium">
-                Enter Learning Dashboard
+              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white gap-2 font-medium transition-all duration-150 ease-out active:scale-[0.98]">
+                Open Free Sandbox
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -331,10 +331,10 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-emerald-500" />
             <span className="font-semibold">MySQL Academy</span>
-            <span>— In-Browser Interactive Relational Education</span>
+            <span>— Free In-Browser Interactive SQL Education</span>
           </div>
           <p className="text-[11px] text-zinc-500">
-            Powered by Next.js, WebAssembly SQL &amp; Pedagogical Agents.
+            Interactive hands-on SQL practice for students and aspiring developers.
           </p>
         </div>
       </footer>

@@ -4,9 +4,9 @@ import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata = {
-  title: "MySQL Academy – Interactive In-Browser Relational Labs",
+  title: "MySQL Academy – Learn MySQL by Writing Real Queries",
   description:
-    "Hands-on, terminal-driven interactive educational platform for learning MySQL, powered by in-memory WebAssembly SQL and autonomous pedagogical AI agents.",
+    "Practice database skills right in your browser with immediate feedback and smart guided hints. No Docker, no command-line setup, and no paywalls.",
 };
 
 export default function RootLayout({
