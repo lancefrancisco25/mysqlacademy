@@ -48,16 +48,18 @@ export function CheckpointExam({
         passed: boolean;
         feedback?: string;
         showHint?: boolean;
+        showSolution?: boolean;
       }
     >
   >(() => {
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
       initial[q.id] = {
-        code: q.starterSQL || "",
+        code: "", // Hidden by default - student must write their own SQL
         passed: false,
         feedback: undefined,
         showHint: false,
+        showSolution: false,
       };
     });
     return initial;
@@ -79,6 +81,16 @@ export function CheckpointExam({
       [id]: {
         ...prev[id],
         showHint: !prev[id]?.showHint,
+      },
+    }));
+  };
+
+  const toggleSolution = (id: string) => {
+    setQuestionStates((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        showSolution: !prev[id]?.showSolution,
       },
     }));
   };
@@ -239,23 +251,53 @@ export function CheckpointExam({
                 {q.prompt}
               </p>
 
-              {/* Hint */}
-              {q.hint && (
-                <div>
-                  <button
-                    onClick={() => toggleHint(q.id)}
-                    className="text-xs text-muted-foreground hover:text-foreground font-mono flex items-center gap-1 transition-colors"
-                  >
-                    <Lightbulb className="h-3 w-3 text-amber-500" />
-                    {state.showHint ? "Hide Exam Hint" : "Need a hint?"}
-                  </button>
-                  {state.showHint && (
-                    <div className="mt-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200">
-                      💡 {q.hint}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Hint and Solution toggles */}
+              <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
+                {q.hint && (
+                  <div>
+                    <button
+                      onClick={() => toggleHint(q.id)}
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                    >
+                      <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                      <span>{state.showHint ? "Hide Exam Hint" : "Need a hint?"}</span>
+                    </button>
+                    {state.showHint && (
+                      <div className="mt-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200">
+                        💡 {q.hint}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {q.solutionSQL && (
+                  <div>
+                    <button
+                      onClick={() => toggleSolution(q.id)}
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-sky-500" />
+                      <span>{state.showSolution ? "Hide Solution" : "Reveal Reference Solution"}</span>
+                    </button>
+                    {state.showSolution && (
+                      <div className="mt-2 p-3 rounded-lg border border-sky-500/30 bg-sky-500/10 text-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-sky-900 dark:text-sky-200">Reference Solution:</span>
+                          <button
+                            onClick={() => handleCodeChange(q.id, q.solutionSQL || "")}
+                            className="text-[11px] text-sky-600 dark:text-sky-400 hover:underline"
+                          >
+                            Insert into Editor
+                          </button>
+                        </div>
+                        <pre className="p-2 rounded bg-zinc-950 font-mono text-emerald-400 text-[11px] overflow-x-auto">
+                          <code>{q.solutionSQL}</code>
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Code Editor */}
               <div className="space-y-2">

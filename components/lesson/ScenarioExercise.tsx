@@ -14,6 +14,7 @@ import {
   Check,
   Copy,
   Terminal,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const [completedRequirements, setCompletedRequirements] = useState<string[]>([]);
   const [showSolution, setShowSolution] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
+  const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
 
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
@@ -168,11 +170,28 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
                 ) : (
                   <Circle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 )}
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   <div className={cn(isDone && "font-semibold")}>{req.text}</div>
                   {req.hint && !isDone && (
-                    <div className="text-[11px] text-muted-foreground font-mono">
-                      💡 {req.hint}
+                    <div className="pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenHints((prev) => ({
+                            ...prev,
+                            [req.id]: !prev[req.id],
+                          }))
+                        }
+                        className="text-[11px] font-mono text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 transition-colors"
+                      >
+                        <Lightbulb className="h-3 w-3" />
+                        <span>{openHints[req.id] ? "Hide hint" : "Need a hint?"}</span>
+                      </button>
+                      {openHints[req.id] && (
+                        <div className="text-[11px] text-amber-800 dark:text-amber-200 font-mono mt-1 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                          💡 {req.hint}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

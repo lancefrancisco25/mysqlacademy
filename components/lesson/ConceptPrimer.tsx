@@ -17,18 +17,10 @@ import {
   ChevronRight,
   Copy,
   Check,
-  Eye,
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  SQLPipelineDiagram,
-  JoinVisualDiagram,
-  RelationalModelDiagram,
-  BTreeDiagram,
-  TransactionFlowDiagram,
-} from "./Diagrams";
 import { DragBlockExercise } from "./DragBlockExercise";
 import { ScenarioExercise } from "./ScenarioExercise";
 import { CheckpointExam } from "./CheckpointExam";
@@ -58,23 +50,6 @@ export function ConceptPrimer({
     navigator.clipboard.writeText(code);
     setCopiedIndex(idx);
     setTimeout(() => setCopiedIndex(null), 1500);
-  };
-
-  const renderDiagram = () => {
-    switch (lesson.diagramType) {
-      case "pipeline":
-        return <SQLPipelineDiagram />;
-      case "join":
-        return <JoinVisualDiagram />;
-      case "relations":
-        return <RelationalModelDiagram />;
-      case "btree":
-        return <BTreeDiagram />;
-      case "transactions":
-        return <TransactionFlowDiagram />;
-      default:
-        return null;
-    }
   };
 
   return (
@@ -138,18 +113,7 @@ export function ConceptPrimer({
           </div>
         )}
 
-        {/* ── 2. Visual Architecture Diagram ─────────────────────────── */}
-        {lesson.diagramType && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
-              <Eye className="h-3.5 w-3.5 text-sky-400" />
-              <span>Interactive Mental Model Diagram</span>
-            </div>
-            {renderDiagram()}
-          </div>
-        )}
-
-        {/* ── 3. Concept Sections with Copyable Syntax ───────────────── */}
+        {/* ── 2. Concept Sections with Copyable Syntax ───────────────── */}
         <div className="space-y-8">
           {lesson.content.map((section, idx) => (
             <div key={idx} className="space-y-3">

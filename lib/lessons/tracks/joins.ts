@@ -123,8 +123,6 @@ export const joinsLessons: Lesson[] = [
             hint: "WHERE o.total_amount >= 100",
           },
         ],
-        starterSQL:
-          "-- Join customers and orders for high-value purchases\nSELECT\n  -- columns\nFROM customers c\n-- JOIN and WHERE\n;",
         solutionSQL:
           "SELECT c.full_name, c.email, o.total_amount\nFROM customers c\nINNER JOIN orders o ON c.id = o.customer_id\nWHERE o.total_amount >= 100;",
         solutionExplanation:
@@ -145,8 +143,6 @@ export const joinsLessons: Lesson[] = [
           prompt:
             "Join `staff s` with `departments d` on `s.department_id = d.id`, selecting `s.name` and `d.name`.",
           hint: "SELECT s.name, d.name FROM staff s INNER JOIN departments d ON s.department_id = d.id;",
-          starterSQL:
-            "SELECT s.name, d.name\nFROM staff s\nINNER JOIN departments d ON s.department_id = d.id;",
           solutionSQL:
             "SELECT s.name, d.name\nFROM staff s\nINNER JOIN departments d ON s.department_id = d.id;",
           validation: {
@@ -162,8 +158,6 @@ export const joinsLessons: Lesson[] = [
           prompt:
             "Write a query selecting `s.name`, `d.name`, and `s.salary` from `staff s` joined with `departments d` on `s.department_id = d.id` where `d.name = 'Engineering'`.",
           hint: "SELECT s.name, d.name, s.salary FROM staff s INNER JOIN departments d ON s.department_id = d.id WHERE d.name = 'Engineering';",
-          starterSQL:
-            "SELECT s.name, d.name, s.salary\nFROM staff s\nINNER JOIN departments d ON s.department_id = d.id\nWHERE d.name = 'Engineering';",
           solutionSQL:
             "SELECT s.name, d.name, s.salary\nFROM staff s\nINNER JOIN departments d ON s.department_id = d.id\nWHERE d.name = 'Engineering';",
           validation: {
@@ -331,8 +325,6 @@ export const joinsLessons: Lesson[] = [
             hint: "WHERE da.id IS NULL",
           },
         ],
-        starterSQL:
-          "-- Identify patients with no assigned physician\nSELECT pt.id, pt.name\nFROM patients pt\n-- Add LEFT JOIN and filter\n;",
         solutionSQL:
           "SELECT pt.id, pt.name\nFROM patients pt\nLEFT JOIN doctor_assignments da ON pt.id = da.patient_id\nWHERE da.id IS NULL;",
         solutionExplanation:
@@ -353,8 +345,6 @@ export const joinsLessons: Lesson[] = [
           prompt:
             "Perform a LEFT JOIN between `customers c` and `purchases p` on `c.id = p.customer_id`, selecting `c.name` and `p.item`.",
           hint: "SELECT c.name, p.item FROM customers c LEFT JOIN purchases p ON c.id = p.customer_id;",
-          starterSQL:
-            "SELECT c.name, p.item\nFROM customers c\nLEFT JOIN purchases p ON c.id = p.customer_id;",
           solutionSQL:
             "SELECT c.name, p.item\nFROM customers c\nLEFT JOIN purchases p ON c.id = p.customer_id;",
           validation: {
@@ -502,8 +492,6 @@ export const joinsLessons: Lesson[] = [
             hint: "WHERE lifetime_spend > (SELECT AVG(lifetime_spend) FROM customers)",
           },
         ],
-        starterSQL:
-          "-- Query customers with above-average lifetime spend\nSELECT name, lifetime_spend\nFROM customers\nWHERE -- Add subquery\n;",
         solutionSQL:
           "SELECT name, lifetime_spend\nFROM customers\nWHERE lifetime_spend > (\n  SELECT AVG(lifetime_spend) FROM customers\n);",
         solutionExplanation:
@@ -524,8 +512,6 @@ export const joinsLessons: Lesson[] = [
           prompt:
             "Select `name` and `price` of products where `price > (SELECT AVG(price) FROM products)`.",
           hint: "SELECT name, price FROM products WHERE price > (SELECT AVG(price) FROM products);",
-          starterSQL:
-            "SELECT name, price\nFROM products\nWHERE price > (SELECT AVG(price) FROM products);",
           solutionSQL:
             "SELECT name, price\nFROM products\nWHERE price > (SELECT AVG(price) FROM products);",
           validation: {

@@ -134,8 +134,6 @@ export const transactionsLessons: Lesson[] = [
             hint: "COMMIT;",
           },
         ],
-        starterSQL:
-          "-- Execute atomic hotel booking transaction\nSTART TRANSACTION;\n-- Insert booking and update inventory\nCOMMIT;",
         solutionSQL:
           "START TRANSACTION;\nINSERT INTO bookings (guest_name, room_type, nights) VALUES ('David Miller', 'Deluxe Suite', 3);\nUPDATE room_inventory SET available_rooms = available_rooms - 1 WHERE room_type = 'Deluxe Suite';\nCOMMIT;",
         solutionExplanation:
@@ -156,8 +154,6 @@ export const transactionsLessons: Lesson[] = [
           prompt:
             "Transfer 500 from Alice Johnson to Bob Smith within a transaction. Alice's balance must become 4500 and Bob's must become 12500.",
           hint: "START TRANSACTION; UPDATE accounts SET balance = balance - 500 WHERE holder_name = 'Alice Johnson'; UPDATE accounts SET balance = balance + 500 WHERE holder_name = 'Bob Smith'; COMMIT;",
-          starterSQL:
-            "START TRANSACTION;\nUPDATE accounts SET balance = balance - 500 WHERE holder_name = 'Alice Johnson';\nUPDATE accounts SET balance = balance + 500 WHERE holder_name = 'Bob Smith';\nCOMMIT;",
           solutionSQL:
             "START TRANSACTION;\nUPDATE accounts SET balance = balance - 500 WHERE holder_name = 'Alice Johnson';\nUPDATE accounts SET balance = balance + 500 WHERE holder_name = 'Bob Smith';\nCOMMIT;",
           validation: {
@@ -304,8 +300,6 @@ export const transactionsLessons: Lesson[] = [
             hint: "ON playback_events(user_id, device_type);",
           },
         ],
-        starterSQL:
-          "-- Create composite index to eliminate full table scan\nCREATE INDEX -- index name\nON -- table(columns)\n;",
         solutionSQL:
           "CREATE INDEX idx_playback_user_device\nON playback_events(user_id, device_type);",
         solutionExplanation:
@@ -326,7 +320,6 @@ export const transactionsLessons: Lesson[] = [
           prompt:
             "Create an index named `idx_logs_user_id` on the `logs` table covering the `user_id` column.",
           hint: "CREATE INDEX idx_logs_user_id ON logs(user_id);",
-          starterSQL: "CREATE INDEX idx_logs_user_id ON logs(user_id);",
           solutionSQL: "CREATE INDEX idx_logs_user_id ON logs(user_id);",
           validation: {
             type: "query_result",
@@ -340,7 +333,6 @@ export const transactionsLessons: Lesson[] = [
           prompt:
             "Create a composite index named `idx_logs_user_action` on the `logs` table covering both `user_id` and `action`.",
           hint: "CREATE INDEX idx_logs_user_action ON logs(user_id, action);",
-          starterSQL: "CREATE INDEX idx_logs_user_action ON logs(user_id, action);",
           solutionSQL: "CREATE INDEX idx_logs_user_action ON logs(user_id, action);",
           validation: {
             type: "query_result",

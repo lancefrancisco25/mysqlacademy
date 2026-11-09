@@ -124,8 +124,6 @@ export const schemaEvolutionLessons: Lesson[] = [
             hint: "NOT NULL DEFAULT 'pending'",
           },
         ],
-        starterSQL:
-          "-- Alter accounts table to add kyc_status\nALTER TABLE accounts\n  -- Add column here\n;",
         solutionSQL:
           "ALTER TABLE accounts\nADD COLUMN kyc_status VARCHAR(30) NOT NULL DEFAULT 'pending';",
         solutionExplanation:
@@ -145,7 +143,6 @@ export const schemaEvolutionLessons: Lesson[] = [
           title: "Add Contact Phone Attribute",
           prompt: "Alter the `users` table by adding column `phone` (VARCHAR(20)).",
           hint: "ALTER TABLE users ADD COLUMN phone VARCHAR(20);",
-          starterSQL: "ALTER TABLE users ADD COLUMN phone VARCHAR(20);",
           solutionSQL: "ALTER TABLE users ADD COLUMN phone VARCHAR(20);",
           validation: { type: "column_exists", table: "users", column: "phone" },
         },
@@ -155,7 +152,6 @@ export const schemaEvolutionLessons: Lesson[] = [
           prompt:
             "Alter the `users` table by adding column `created_at` with DEFAULT `(date('now'))`.",
           hint: "ALTER TABLE users ADD COLUMN created_at TEXT DEFAULT (date('now'));",
-          starterSQL: "ALTER TABLE users ADD COLUMN created_at TEXT DEFAULT (date('now'));",
           solutionSQL: "ALTER TABLE users ADD COLUMN created_at TEXT DEFAULT (date('now'));",
           validation: { type: "column_exists", table: "users", column: "created_at" },
         },
@@ -305,8 +301,6 @@ export const schemaEvolutionLessons: Lesson[] = [
             validationRule: { type: "column_exists", table: "wallets", column: "balance" },
           },
         ],
-        starterSQL:
-          "-- Create wallets table with domain constraints\nCREATE TABLE wallets (\n  -- Columns here\n);",
         solutionSQL:
           "CREATE TABLE wallets (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  wallet_address VARCHAR(64) UNIQUE NOT NULL,\n  balance REAL CHECK(balance >= 0),\n  created_date DATE\n);",
         solutionExplanation:
@@ -327,8 +321,6 @@ export const schemaEvolutionLessons: Lesson[] = [
           prompt:
             "Create table `products` with: `id` (PK AUTOINCREMENT), `name` (NOT NULL), `sku` (UNIQUE), `price` (REAL), and `category_id` (INTEGER).",
           hint: "CREATE TABLE products (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(100) NOT NULL, sku VARCHAR(20) UNIQUE, price REAL, category_id INTEGER);",
-          starterSQL:
-            "CREATE TABLE products (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  sku VARCHAR(20) UNIQUE,\n  price REAL,\n  category_id INTEGER\n);",
           solutionSQL:
             "CREATE TABLE products (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  sku VARCHAR(20) UNIQUE,\n  price REAL,\n  category_id INTEGER\n);",
           validation: { type: "table_exists", table: "products" },

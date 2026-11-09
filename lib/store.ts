@@ -17,6 +17,7 @@ import {
 } from "./sql-engine/engine";
 import { validateTask } from "./agents/validator";
 import { getMentorHint } from "./agents/mentor";
+import { analyzeSQLSafety } from "./sql-engine/safety";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,16 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       let result = executeSQL(sql);
       // Refresh schema after query execution
       get().refreshSchema();
+
+      // DDL & DML Safety check inspection
+      const safety = analyzeSQLSafety(sql);
+      safety.warnings.forEach((warn) => {
+        get().addFeedback({
+          type: "hint",
+          message: warn,
+        });
+        toast.warning(warn, { duration: 6000 });
+      });
 
       // Autonomous Pedagogical Grader Agent verification
       const lesson = get().currentLesson;

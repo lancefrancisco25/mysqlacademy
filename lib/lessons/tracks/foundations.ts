@@ -85,11 +85,16 @@ export const foundationsLessons: Lesson[] = [
         code: "CREATE TABLE students (\n  -- The unique identity barcode: auto-increments 1, 2, 3...\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  \n  -- The student's full name: variable-length text up to 100 characters\n  -- NOT NULL means this field can never be left empty!\n  name VARCHAR(100) NOT NULL,\n  \n  -- Age stored as a whole number\n  age INTEGER,\n  \n  -- Email address stored as text up to 150 characters\n  email VARCHAR(150)\n);",
       },
       {
-        heading: "4. Under the Hood: What MySQL Does When You Hit Run",
+        heading: "4. DDL vs DML: Command Taxonomy & Production Safety",
+        body: "In SQL, commands belong to two primary families:\n\n• DDL (Data Definition Language): Commands that define and modify schema structures (`CREATE`, `ALTER`, `DROP`, `TRUNCATE`). DDL commands manage the filing cabinets, not the papers inside.\n  ⚠️ DDL Safety Rule: In MySQL, DDL commands trigger an immediate implicit COMMIT on disk. You cannot undo a `DROP TABLE` with `ROLLBACK`! In deployment scripts, always use `CREATE TABLE IF NOT EXISTS` to ensure idempotent migrations.\n\n• DML (Data Manipulation Language): Commands that manage the data records inside the tables (`INSERT`, `UPDATE`, `DELETE`, `SELECT`).\n  ⚠️ DML Safety Rule: When mutating rows with `UPDATE` or `DELETE`, forgetting the `WHERE` clause mutates EVERY record in the table. Always practice the SELECT-Before-Mutate (S-B-M) rule.",
+        code: "-- DDL Example: Defining table structure (auto-committed)\nCREATE TABLE IF NOT EXISTS campuses (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  city VARCHAR(80) NOT NULL\n);\n\n-- DML Example: Inserting records into the defined structure\nINSERT INTO campuses (city) VALUES ('Boston'), ('San Francisco');",
+      },
+      {
+        heading: "5. Under the Hood: What MySQL Does When You Hit Run",
         body: "When you execute `CREATE TABLE`, the database engine does something fascinating behind the scenes:\n\n1. Parser Check: MySQL parses your query into an abstract syntax tree to verify you didn't miss a parenthesis or misspell a keyword.\n2. Data Dictionary Registration: MySQL creates an entry in its internal catalog recording the table name, column types, and constraints.\n3. Storage Engine Allocation: The storage engine (such as InnoDB) allocates physical disk pages (usually 16 KB blocks) ready to hold incoming rows.\n4. Index Initialization: Because you designated `id` as `PRIMARY KEY`, MySQL automatically builds a high-speed B-Tree index on disk so lookups by ID will take microseconds even when the table reaches 10 million rows.",
       },
       {
-        heading: "5. Introspecting Your Work: DESCRIBE and SHOW TABLES",
+        heading: "6. Introspecting Your Work: DESCRIBE and SHOW TABLES",
         body: "Professional engineers never assume code worked—they inspect the state of the database immediately.\n\nMySQL gives you two indispensable inspection tools:\n• `SHOW TABLES;` — Lists every table registered in the current active database.\n• `DESCRIBE <table_name>;` (or `DESC <table_name>;`) — Displays the full schema blueprint: column names, data types, whether NULL is permitted, default values, and primary key status.",
         code: "-- Check that 'students' is now registered in our database\nSHOW TABLES;\n\n-- Inspect the detailed column specifications of 'students'\nDESCRIBE students;\n\n-- Output will show columns: Field, Type, Null, Key, Default, Extra",
       },
@@ -149,8 +154,6 @@ export const foundationsLessons: Lesson[] = [
             validationRule: { type: "column_exists", table: "customers", column: "email" },
           },
         ],
-        starterSQL:
-          "-- Write your DDL statement to create the customers table\nCREATE TABLE customers (\n  -- define columns here\n);",
         solutionSQL:
           "CREATE TABLE customers (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  full_name VARCHAR(120) NOT NULL,\n  email VARCHAR(180)\n);",
         solutionExplanation:
@@ -171,8 +174,6 @@ export const foundationsLessons: Lesson[] = [
           prompt:
             "Write the complete SQL DDL statement to create the table `students` with: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `name` (VARCHAR(100) NOT NULL), `age` (INTEGER), and `email` (VARCHAR(150)).",
           hint: "CREATE TABLE students (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(100) NOT NULL, age INTEGER, email VARCHAR(150));",
-          starterSQL:
-            "CREATE TABLE students (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  age INTEGER,\n  email VARCHAR(150)\n);",
           solutionSQL:
             "CREATE TABLE students (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  age INTEGER,\n  email VARCHAR(150)\n);",
           validation: {
@@ -186,7 +187,6 @@ export const foundationsLessons: Lesson[] = [
           prompt:
             "Execute the command to list all registered tables in your active database instance to confirm `students` exists.",
           hint: "Run: SHOW TABLES;",
-          starterSQL: "SHOW TABLES;",
           solutionSQL: "SHOW TABLES;",
           validation: {
             type: "query_result",
@@ -383,8 +383,6 @@ export const foundationsLessons: Lesson[] = [
             validationRule: { type: "column_exists", table: "products", column: "stock_quantity" },
           },
         ],
-        starterSQL:
-          "-- Write the DDL to create products with constraints\nCREATE TABLE products (\n  -- Add columns here\n);",
         solutionSQL:
           "CREATE TABLE products (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(150) NOT NULL,\n  price INTEGER NOT NULL,\n  stock_quantity INTEGER DEFAULT 0\n);",
         solutionExplanation:
@@ -405,8 +403,6 @@ export const foundationsLessons: Lesson[] = [
           prompt:
             "Create a table named `courses` with: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `title` (VARCHAR(150) NOT NULL), and `credits` (INTEGER DEFAULT 3).",
           hint: "CREATE TABLE courses (id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(150) NOT NULL, credits INTEGER DEFAULT 3);",
-          starterSQL:
-            "CREATE TABLE courses (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  title VARCHAR(150) NOT NULL,\n  credits INTEGER DEFAULT 3\n);",
           solutionSQL:
             "CREATE TABLE courses (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  title VARCHAR(150) NOT NULL,\n  credits INTEGER DEFAULT 3\n);",
           validation: {
@@ -420,7 +416,6 @@ export const foundationsLessons: Lesson[] = [
           prompt:
             "Execute the command to inspect the column specifications and verify the default values of `courses`.",
           hint: "DESCRIBE courses;",
-          starterSQL: "DESCRIBE courses;",
           solutionSQL: "DESCRIBE courses;",
           validation: {
             type: "column_exists",
@@ -622,8 +617,6 @@ export const foundationsLessons: Lesson[] = [
             validationRule: { type: "column_exists", table: "vitals", column: "recorded_date" },
           },
         ],
-        starterSQL:
-          "-- Create the vitals table with appropriate data types\nCREATE TABLE vitals (\n  -- Columns here\n);",
         solutionSQL:
           "CREATE TABLE vitals (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  patient_name VARCHAR(120) NOT NULL,\n  body_temp REAL,\n  recorded_date DATE\n);",
         solutionExplanation:
@@ -644,8 +637,6 @@ export const foundationsLessons: Lesson[] = [
           prompt:
             "Create a table named `professors` with: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `name` (VARCHAR(100) NOT NULL), `department` (VARCHAR(100)), `salary` (REAL NOT NULL), and `hire_date` (DATE NOT NULL).",
           hint: "CREATE TABLE professors (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(100) NOT NULL, department VARCHAR(100), salary REAL NOT NULL, hire_date DATE NOT NULL);",
-          starterSQL:
-            "CREATE TABLE professors (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  department VARCHAR(100),\n  salary REAL NOT NULL,\n  hire_date DATE NOT NULL\n);",
           solutionSQL:
             "CREATE TABLE professors (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  department VARCHAR(100),\n  salary REAL NOT NULL,\n  hire_date DATE NOT NULL\n);",
           validation: {
@@ -659,7 +650,6 @@ export const foundationsLessons: Lesson[] = [
           prompt:
             "Run DESCRIBE professors; to verify that all column types and nullability constraints were applied correctly.",
           hint: "DESCRIBE professors;",
-          starterSQL: "DESCRIBE professors;",
           solutionSQL: "DESCRIBE professors;",
           validation: {
             type: "column_exists",

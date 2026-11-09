@@ -24,6 +24,7 @@ import { SplitPane } from "@/components/lesson/SplitPane";
 import { TaskList } from "@/components/lesson/TaskList";
 import { LessonContent } from "@/components/lesson/LessonContent";
 import { ConceptPrimer } from "@/components/lesson/ConceptPrimer";
+import { LabTasksSidebar } from "@/components/lesson/LabTasksSidebar";
 import { CurriculumSidebar } from "@/components/lesson/CurriculumSidebar";
 import { SchemaViewer } from "@/components/lesson/SchemaViewer";
 import { HintPanel } from "@/components/lesson/HintPanel";
@@ -119,50 +120,17 @@ export default function LessonWorkspacePage() {
     );
   }
 
-  // Left Curriculum Panel (for Lab Mode)
+  // Left Tasks Panel (for Interactive Lab Mode)
   const leftPanel = (
     <div className="h-full flex flex-col bg-card border-r border-border overflow-hidden">
-      {/* Top Track & Breadcrumbs */}
-      <div className="p-4 border-b border-border/80 bg-muted/20 flex items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            onClick={() => setViewMode("concept")}
-            className="text-xs text-muted-foreground hover:text-emerald-400 flex items-center gap-1 font-medium transition-colors"
-            title="Switch back to full-screen concept primer"
-          >
-            <BookOpen className="h-3 w-3" />
-            Concept Primer
-          </button>
-          <span className="text-zinc-600">/</span>
-          <span className="text-xs text-emerald-400 font-medium truncate">
-            {track?.title || "Track"}
-          </span>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          disabled={isResetting}
-          className="h-7 px-2.5 text-xs gap-1.5 border-border hover:bg-destructive/10 hover:text-destructive"
-          title="Roll back database to lesson seed state"
-        >
-          <RotateCcw className={`h-3 w-3 ${isResetting ? "animate-spin" : ""}`} />
-          Reset DB
-        </Button>
-      </div>
-
-      {/* Scrollable Curriculum Body */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-8 terminal-scrollbar">
-        <LessonContent
-          title={lesson.title}
-          description={lesson.description}
-          sections={lesson.content}
+      <div className="flex-1 overflow-hidden">
+        <LabTasksSidebar
+          lesson={lesson}
+          track={track}
+          onBackToPrimer={() => setViewMode("concept")}
+          onResetDB={handleReset}
+          isResetting={isResetting}
         />
-
-        <div className="border-t border-border/80 pt-6">
-          <TaskList tasks={lesson.tasks} lessonSlug={lesson.slug} />
-        </div>
       </div>
 
       {/* Navigation Footer */}

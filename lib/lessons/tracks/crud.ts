@@ -83,6 +83,11 @@ export const crudLessons: Lesson[] = [
         heading: "4. Under the Hood: The Write-Ahead Log (WAL)",
         body: "When you run an INSERT, does MySQL immediately search the disk to find empty space in the data file? No—that would be too slow.\n\nInstead, MySQL writes the new record sequentially into an in-memory buffer pool and writes a lightning-fast sequential record to the Write-Ahead Log (WAL / redo log). This ensures durability: even if the power cord is yanked out a microsecond later, MySQL replays the log upon reboot and recovers the row.",
       },
+      {
+        heading: "5. DML Safety Protocols: Preventing Silent Ingestion Failures",
+        body: "Because DML commands manipulate active application records, real-world database administrators adhere to three safety rules:\n\n1. Explicit Column Mapping: Always specify `(first_name, last_name, email)`. Omitting column lists causes queries to corrupt data when future schema migrations reorder columns.\n2. Integrity Constraint Safety: If any row in a batch violates a `UNIQUE` or `NOT NULL` constraint, MySQL aborts the entire statement and inserts zero rows, protecting table consistency.\n3. Safe Mutation Mode: For mutations (`UPDATE`, `DELETE`), MySQL supports `SQL_SAFE_UPDATES = 1`, which refuses to run any update or delete statement that lacks a `WHERE` clause containing a key column.",
+        code: "-- Production-safe DML: explicit columns and constraint compliance\nINSERT INTO students (first_name, last_name, email)\nVALUES ('Sophia', 'Martinez', 'sophia@university.edu');",
+      },
     ],
     exercises: [
       {
@@ -124,8 +129,6 @@ export const crudLessons: Lesson[] = [
             hint: "('Invoice PDF download broken', 'billing@globex.org', 'high')",
           },
         ],
-        starterSQL:
-          "-- Insert two support tickets in a single batch query\nINSERT INTO tickets (subject, customer_email, priority)\nVALUES\n  -- Add row 1 and row 2 here\n;",
         solutionSQL:
           "INSERT INTO tickets (subject, customer_email, priority)\nVALUES\n  ('Login authentication failure', 'ceo@acme.com', 'urgent'),\n  ('Invoice PDF download broken', 'billing@globex.org', 'high');",
         solutionExplanation:
@@ -146,8 +149,6 @@ export const crudLessons: Lesson[] = [
           prompt:
             "Write an INSERT statement to add Alice Johnson: first_name='Alice', last_name='Johnson', email='alice@university.edu'.",
           hint: "INSERT INTO students (first_name, last_name, email) VALUES ('Alice', 'Johnson', 'alice@university.edu');",
-          starterSQL:
-            "INSERT INTO students (first_name, last_name, email)\nVALUES ('Alice', 'Johnson', 'alice@university.edu');",
           solutionSQL:
             "INSERT INTO students (first_name, last_name, email)\nVALUES ('Alice', 'Johnson', 'alice@university.edu');",
           validation: {
@@ -162,8 +163,6 @@ export const crudLessons: Lesson[] = [
           prompt:
             "Execute a batch insert containing at least 4 additional students so that the table contains 5 or more total records.",
           hint: "INSERT INTO students (first_name, last_name, email) VALUES ('Bob', 'S', 'b@u.edu'), ('Carol', 'W', 'c@u.edu'), ('Dave', 'M', 'd@u.edu'), ('Eve', 'T', 'e@u.edu');",
-          starterSQL:
-            "INSERT INTO students (first_name, last_name, email)\nVALUES \n  ('Bob', 'Smith', 'bob@u.edu'),\n  ('Carol', 'Williams', 'carol@u.edu'),\n  ('Dave', 'Miller', 'dave@u.edu'),\n  ('Eve', 'Taylor', 'eve@u.edu');",
           solutionSQL:
             "INSERT INTO students (first_name, last_name, email)\nVALUES \n  ('Bob', 'Smith', 'bob@u.edu'),\n  ('Carol', 'Williams', 'carol@u.edu'),\n  ('Dave', 'Miller', 'dave@u.edu'),\n  ('Eve', 'Taylor', 'eve@u.edu');",
           validation: {
@@ -340,8 +339,6 @@ export const crudLessons: Lesson[] = [
             hint: "LIMIT 5;",
           },
         ],
-        starterSQL:
-          "-- Query the top 5 most played songs\nSELECT -- columns\nFROM songs\n-- sorting & limit\n;",
         solutionSQL:
           "SELECT title, artist, play_count\nFROM songs\nORDER BY play_count DESC\nLIMIT 5;",
         solutionExplanation:
@@ -362,7 +359,6 @@ export const crudLessons: Lesson[] = [
           prompt:
             "Write a query selecting `first_name`, `department`, and `salary` from the `employees` table.",
           hint: "SELECT first_name, department, salary FROM employees;",
-          starterSQL: "SELECT first_name, department, salary FROM employees;",
           solutionSQL: "SELECT first_name, department, salary FROM employees;",
           validation: {
             type: "row_count_gte",
@@ -378,7 +374,6 @@ export const crudLessons: Lesson[] = [
           prompt:
             "Select `first_name` and `salary` from `employees`, ordered by `salary` descending, limited to the top 3 rows.",
           hint: "SELECT first_name, salary FROM employees ORDER BY salary DESC LIMIT 3;",
-          starterSQL: "SELECT first_name, salary FROM employees ORDER BY salary DESC LIMIT 3;",
           solutionSQL: "SELECT first_name, salary FROM employees ORDER BY salary DESC LIMIT 3;",
           validation: {
             type: "query_result",
@@ -556,8 +551,6 @@ export const crudLessons: Lesson[] = [
             hint: "country != 'US'",
           },
         ],
-        starterSQL:
-          "-- Write the WHERE clause to detect suspicious transactions\nSELECT *\nFROM transactions\nWHERE -- Add filter predicates\n;",
         solutionSQL:
           "SELECT *\nFROM transactions\nWHERE amount BETWEEN 500 AND 5000\n  AND risk_status IN ('review', 'flagged')\n  AND country != 'US';",
         solutionExplanation:
@@ -577,7 +570,6 @@ export const crudLessons: Lesson[] = [
           title: "Isolate All Completed Orders",
           prompt: "Select all columns from `orders` where `status` is 'completed'.",
           hint: "SELECT * FROM orders WHERE status = 'completed';",
-          starterSQL: "SELECT * FROM orders WHERE status = 'completed';",
           solutionSQL: "SELECT * FROM orders WHERE status = 'completed';",
           validation: {
             type: "query_result",
@@ -591,7 +583,6 @@ export const crudLessons: Lesson[] = [
           title: "Filter High-Value Hardware Orders",
           prompt: "Select all columns from `orders` where `price >= 300` AND `quantity >= 1`.",
           hint: "SELECT * FROM orders WHERE price >= 300 AND quantity >= 1;",
-          starterSQL: "SELECT * FROM orders WHERE price >= 300 AND quantity >= 1;",
           solutionSQL: "SELECT * FROM orders WHERE price >= 300 AND quantity >= 1;",
           validation: {
             type: "query_result",
@@ -750,8 +741,6 @@ export const crudLessons: Lesson[] = [
             hint: "DELETE FROM subscribers WHERE status = 'cancelled' AND days_inactive > 90",
           },
         ],
-        starterSQL:
-          "-- Perform the two maintenance operations safely\n-- 1. Update Alice\n-- 2. Delete inactive cancelled subscribers\n",
         solutionSQL:
           "UPDATE subscribers\nSET tier = 'pro', monthly_fee = 29.99\nWHERE email = 'alice@cloud.com';\n\nDELETE FROM subscribers\nWHERE status = 'cancelled' AND days_inactive > 90;",
         solutionExplanation:
@@ -772,7 +761,6 @@ export const crudLessons: Lesson[] = [
           prompt:
             "Update the `inventory` table so that `quantity = 150` for the record where `product_name = 'Widget B'`.",
           hint: "UPDATE inventory SET quantity = 150 WHERE product_name = 'Widget B';",
-          starterSQL: "UPDATE inventory SET quantity = 150 WHERE product_name = 'Widget B';",
           solutionSQL: "UPDATE inventory SET quantity = 150 WHERE product_name = 'Widget B';",
           validation: {
             type: "value_check",
@@ -785,7 +773,6 @@ export const crudLessons: Lesson[] = [
           title: "Purge Depleted Zero-Quantity Inventory",
           prompt: "Delete all records from the `inventory` table where `quantity = 0`.",
           hint: "DELETE FROM inventory WHERE quantity = 0;",
-          starterSQL: "DELETE FROM inventory WHERE quantity = 0;",
           solutionSQL: "DELETE FROM inventory WHERE quantity = 0;",
           validation: {
             type: "query_result",

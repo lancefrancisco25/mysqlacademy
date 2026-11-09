@@ -139,8 +139,6 @@ export const aggregationsLessons: Lesson[] = [
             hint: "WHERE status = 'approved' AND country != 'US'",
           },
         ],
-        starterSQL:
-          "-- Calculate risk metrics for approved non-US transfers\nSELECT\n  -- Aggregates here\nFROM transfers\nWHERE -- Filter conditions\n;",
         solutionSQL:
           "SELECT \n  COUNT(*) AS total_transfers,\n  SUM(amount) AS total_exposure,\n  AVG(amount) AS avg_transfer\nFROM transfers\nWHERE status = 'approved' AND country != 'US';",
         solutionExplanation:
@@ -161,7 +159,6 @@ export const aggregationsLessons: Lesson[] = [
           prompt:
             "Run a query calculating `COUNT(*)` as `total_count` and `SUM(amount)` as `total_amount` from the `sales` table.",
           hint: "SELECT COUNT(*), SUM(amount) FROM sales;",
-          starterSQL: "SELECT COUNT(*), SUM(amount) FROM sales;",
           solutionSQL: "SELECT COUNT(*), SUM(amount) FROM sales;",
           validation: {
             type: "query_result",
@@ -319,8 +316,6 @@ export const aggregationsLessons: Lesson[] = [
             hint: "HAVING COUNT(*) >= 3",
           },
         ],
-        starterSQL:
-          "-- Query department enrollment and GPA metrics\nSELECT\n  -- Projected columns\nFROM students\n-- Grouping and threshold\n;",
         solutionSQL:
           "SELECT \n  department,\n  ROUND(AVG(gpa), 2) AS avg_gpa,\n  COUNT(*) AS student_count\nFROM students\nGROUP BY department\nHAVING COUNT(*) >= 3;",
         solutionExplanation:
@@ -341,7 +336,6 @@ export const aggregationsLessons: Lesson[] = [
           prompt:
             "Select `category` and `SUM(amount)` from the `transactions` table grouped by `category`.",
           hint: "SELECT category, SUM(amount) FROM transactions GROUP BY category;",
-          starterSQL: "SELECT category, SUM(amount) FROM transactions GROUP BY category;",
           solutionSQL: "SELECT category, SUM(amount) FROM transactions GROUP BY category;",
           validation: {
             type: "query_result",
@@ -356,8 +350,6 @@ export const aggregationsLessons: Lesson[] = [
           prompt:
             "Write a query grouping by `category` that shows `category` and `SUM(amount)` where `SUM(amount) > 500`.",
           hint: "SELECT category, SUM(amount) FROM transactions GROUP BY category HAVING SUM(amount) > 500;",
-          starterSQL:
-            "SELECT category, SUM(amount) FROM transactions GROUP BY category HAVING SUM(amount) > 500;",
           solutionSQL:
             "SELECT category, SUM(amount) FROM transactions GROUP BY category HAVING SUM(amount) > 500;",
           validation: {
