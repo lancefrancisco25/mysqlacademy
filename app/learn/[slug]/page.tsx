@@ -224,8 +224,9 @@ export default function LessonWorkspacePage() {
       <Header />
 
       {/* ── Subheader with Mode Switcher Bar ────────────────────────── */}
-      <div className="relative h-11 border-b border-border bg-card/60 backdrop-blur px-3 sm:px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 max-w-[45%] sm:max-w-[35%] shrink-0">
+      <div className="h-11 border-b border-border bg-card/60 backdrop-blur px-3 sm:px-4 flex items-center justify-between gap-4 shrink-0">
+        {/* Left: Sidebar Toggle & Lesson Breadcrumb */}
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {/* Collapsible Curriculum Sidebar Trigger */}
           <button
             onClick={() => setIsSidebarOpen((prev) => !prev)}
@@ -258,47 +259,49 @@ export default function LessonWorkspacePage() {
           </Link>
 
           <span className="text-zinc-600 hidden md:inline shrink-0">/</span>
-          <span className="text-xs font-semibold text-emerald-400 truncate">
+          <span className="text-xs font-semibold text-emerald-400 truncate max-w-[160px] sm:max-w-[240px] md:max-w-md">
             {lesson.title}
           </span>
         </div>
 
-        {/* Mode Switcher Pill - Absolutely Centered on sm+ screens */}
-        <div className="flex items-center gap-1 bg-muted/60 p-0.5 sm:p-1 rounded-lg border border-border text-xs font-medium sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 shrink-0">
-          <button
-            onClick={() => setViewMode("concept")}
-            className={cn(
-              "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-md transition-all text-xs",
-              viewMode === "concept"
-                ? "bg-background text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <BookOpen className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Concept Primer</span>
-          </button>
-          <button
-            onClick={() => setViewMode("lab")}
-            className={cn(
-              "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-md transition-all text-xs",
-              viewMode === "lab"
-                ? "bg-background text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <TerminalIcon className="h-3.5 w-3.5 text-sky-400" />
-            <span>Interactive Lab</span>
-          </button>
-        </div>
+        {/* Right: Mode Switcher & Lab Controls */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Mode Switcher Pill */}
+          <div className="flex items-center gap-1 bg-muted/60 p-0.5 sm:p-1 rounded-lg border border-border text-xs font-medium">
+            <button
+              onClick={() => setViewMode("concept")}
+              className={cn(
+                "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-md transition-all text-xs",
+                viewMode === "concept"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <BookOpen className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Concept Primer</span>
+            </button>
+            <button
+              onClick={() => setViewMode("lab")}
+              className={cn(
+                "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 rounded-md transition-all text-xs",
+                viewMode === "lab"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <TerminalIcon className="h-3.5 w-3.5 text-sky-400" />
+              <span>Interactive Lab</span>
+            </button>
+          </div>
 
-        <div className="flex items-center gap-2 shrink-0 min-w-[70px] justify-end">
+          {/* Reset DB Button in Lab Mode */}
           {viewMode === "lab" && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleReset}
               disabled={isResetting}
-              className="h-7 px-2 text-xs gap-1 border-border hover:bg-destructive/10 hover:text-destructive"
+              className="h-7 px-2 text-xs gap-1 border-border hover:bg-destructive/10 hover:text-destructive shrink-0"
               title="Roll back database to lesson seed state"
             >
               <RotateCcw className={`h-3 w-3 ${isResetting ? "animate-spin" : ""}`} />
