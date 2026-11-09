@@ -58,6 +58,8 @@ export default function LearnDashboardPage() {
     (stats.completedLessons / Math.max(totalLessons, 1)) * 100
   );
 
+  const currentProgress = mounted ? progress : {};
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
@@ -138,11 +140,13 @@ export default function LearnDashboardPage() {
 
               // Calculate track completion
               const completedInTrack = lessons.filter((l) => {
-                const p = progress[l.slug];
+                const p = currentProgress[l.slug];
                 return p && p.completedTaskIds && p.completedTaskIds.length >= l.tasks.length;
               }).length;
 
-              const trackPercent = Math.round((completedInTrack / lessons.length) * 100);
+              const trackPercent = lessons.length > 0
+                ? Math.round((completedInTrack / lessons.length) * 100)
+                : 0;
 
               return (
                 <div
@@ -186,7 +190,7 @@ export default function LearnDashboardPage() {
                   {/* Lessons List in Track */}
                   <div className="divide-y divide-border/40">
                     {lessons.map((lesson, lessonIdx) => {
-                      const lessonProg = progress[lesson.slug];
+                      const lessonProg = currentProgress[lesson.slug];
                       const tasksDone = lessonProg?.completedTaskIds?.length || 0;
                       const isComplete = tasksDone >= lesson.tasks.length && lesson.tasks.length > 0;
 

@@ -51,6 +51,7 @@ interface LessonState {
 
   // Progress (persisted in localStorage and synchronized with cloud)
   progress: Record<string, LessonProgress>;
+  rehydrateProgress: () => void;
   completeTask: (lessonSlug: string, taskId: string) => void;
   toggleTask: (lessonSlug: string, taskId: string) => void;
   verifyPendingTasks: () => void;
@@ -340,7 +341,15 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
   // ── Progress ──────────────────────────────────────────────────────────
 
-  progress: loadProgress(),
+  progress: {},
+
+  rehydrateProgress: () => {
+    if (typeof window === "undefined") return;
+    const saved = loadProgress();
+    if (Object.keys(saved).length > 0) {
+      set((s) => ({ progress: { ...s.progress, ...saved } }));
+    }
+  },
 
   completeTask: (lessonSlug: string, taskId: string) => {
     const currentProgress = get().progress;
