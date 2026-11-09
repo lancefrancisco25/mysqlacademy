@@ -224,13 +224,13 @@ export default function LessonWorkspacePage() {
       <Header />
 
       {/* ── Subheader with Mode Switcher Bar ────────────────────────── */}
-      <div className="h-11 border-b border-border bg-card/60 backdrop-blur px-3 sm:px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+      <div className="relative h-11 border-b border-border bg-card/60 backdrop-blur px-3 sm:px-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 max-w-[45%] sm:max-w-[35%] shrink-0">
           {/* Collapsible Curriculum Sidebar Trigger */}
           <button
             onClick={() => setIsSidebarOpen((prev) => !prev)}
             className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono transition-colors border",
+              "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono transition-colors border shrink-0",
               isSidebarOpen
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                 : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -246,7 +246,7 @@ export default function LessonWorkspacePage() {
             <span className="hidden sm:inline">Curriculum</span>
           </button>
 
-          <span className="text-zinc-600 hidden sm:inline">/</span>
+          <span className="text-zinc-600 hidden sm:inline shrink-0">/</span>
 
           <Link
             href="/learn"
@@ -257,14 +257,14 @@ export default function LessonWorkspacePage() {
             <span className="hidden md:inline">All Lessons</span>
           </Link>
 
-          <span className="text-zinc-600 hidden md:inline">/</span>
-          <span className="text-xs font-semibold text-emerald-400 truncate max-w-[140px] sm:max-w-[200px] md:max-w-xs">
+          <span className="text-zinc-600 hidden md:inline shrink-0">/</span>
+          <span className="text-xs font-semibold text-emerald-400 truncate">
             {lesson.title}
           </span>
         </div>
 
-        {/* Mode Switcher Pill */}
-        <div className="flex items-center gap-1 bg-muted/60 p-0.5 sm:p-1 rounded-lg border border-border text-xs font-medium">
+        {/* Mode Switcher Pill - Absolutely Centered on sm+ screens */}
+        <div className="flex items-center gap-1 bg-muted/60 p-0.5 sm:p-1 rounded-lg border border-border text-xs font-medium sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 shrink-0">
           <button
             onClick={() => setViewMode("concept")}
             className={cn(
@@ -291,7 +291,7 @@ export default function LessonWorkspacePage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 min-w-[70px] justify-end">
           {viewMode === "lab" && (
             <Button
               variant="outline"
