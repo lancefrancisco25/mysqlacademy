@@ -15,10 +15,24 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    // Capture OAuth session from URL hash or exchange code
-    client.auth.getSession().then(() => {
-      router.replace("/learn");
-    });
+    // Capture OAuth session from URL code exchange (PKCE) or hash fragment
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+
+    if (code) {
+      client.auth.exchangeCodeForSession(code).then(() => {
+        router.replace("/learn");
+      }).catch((err) => {
+        console.warn("[auth/callback] exchangeCode error:", err);
+        router.replace("/learn");
+      });
+    } else {
+      client.auth.getSession().then(() => {
+        router.replace("/learn");
+      }).catch(() => {
+        router.replace("/learn");
+      });
+    }
   }, [router]);
 
   return (
