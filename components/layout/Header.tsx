@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Database, BookOpen, GraduationCap } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { AuthButton } from "@/components/auth/AuthButton";
 
 export function Header() {
   return (
@@ -35,6 +36,7 @@ export function Header() {
 
         {/* Right */}
         <div className="flex items-center gap-2">
+          <AuthButton />
           <ThemeToggle />
           <Link href="/learn" className="hidden sm:block">
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white">

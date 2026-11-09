@@ -6,6 +6,8 @@ import type {
   AgentFeedback,
   QueryResult,
   TableInfo,
+  StudentUser,
+  CloudSyncStatus,
 } from "@/types";
 import {
   initDatabase,
@@ -18,6 +20,13 @@ import {
 import { validateTask } from "./agents/validator";
 import { getMentorHint } from "./agents/mentor";
 import { analyzeSQLSafety } from "./sql-engine/safety";
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  mapSupabaseUser,
+  fetchCloudProgress,
+  saveCloudProgress,
+} from "./supabase";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -32,7 +41,15 @@ interface LessonState {
   currentLesson: Lesson | null;
   setCurrentLesson: (lesson: Lesson) => void;
 
-  // Progress (persisted in localStorage)
+  // Student Auth & Cloud Sync
+  user: StudentUser | null;
+  cloudSyncStatus: CloudSyncStatus;
+  lastCloudSync: number | null;
+  setUser: (user: StudentUser | null) => void;
+  initAuth: () => () => void;
+  syncWithCloud: () => Promise<void>;
+
+  // Progress (persisted in localStorage and synchronized with cloud)
   progress: Record<string, LessonProgress>;
   completeTask: (lessonSlug: string, taskId: string) => void;
   toggleTask: (lessonSlug: string, taskId: string) => void;
@@ -71,6 +88,38 @@ function saveProgress(progress: Record<string, LessonProgress>) {
   } catch {
     // localStorage unavailable
   }
+}
+
+/**
+ * Merge local and cloud progress taking the union of completed tasks
+ */
+function mergeProgress(
+  local: Record<string, LessonProgress>,
+  cloud: Record<string, LessonProgress>
+): Record<string, LessonProgress> {
+  const merged: Record<string, LessonProgress> = { ...local };
+  for (const [slug, cloudProg] of Object.entries(cloud)) {
+    const localProg = merged[slug];
+    if (!localProg) {
+      merged[slug] = cloudProg;
+    } else {
+      const combinedTasks = Array.from(
+        new Set([
+          ...(localProg.completedTaskIds || []),
+          ...(cloudProg.completedTaskIds || []),
+        ])
+      );
+      merged[slug] = {
+        lessonSlug: slug,
+        completedTaskIds: combinedTasks,
+        lastAccessed: Math.max(
+          localProg.lastAccessed || 0,
+          cloudProg.lastAccessed || 0
+        ),
+      };
+    }
+  }
+  return merged;
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────
@@ -136,7 +185,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         toast.warning(warn, { duration: 6000 });
       });
 
-      // Autonomous Pedagogical Grader Agent verification
+      // Grader verification
       const lesson = get().currentLesson;
       if (lesson && lesson.tasks) {
         for (const task of lesson.tasks) {
@@ -157,7 +206,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
             const updatedProg = get().progress[lesson.slug]?.completedTaskIds || [];
             const nextTask = lesson.tasks.find((t) => !updatedProg.includes(t.id));
 
-            // Attach completed task info to result object so the terminal can print it
+            // Attach completed task info to result object so terminal can print it
             if (!result) {
               result = {
                 columns: ["status"],
@@ -186,7 +235,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
       return result;
     } catch (err: any) {
-      // Autonomous Socratic Mentor Agent intercept
+      // Socratic Mentor Hint intercept
       const hint = getMentorHint(sql, err.message || "Unknown error");
       if (hint) {
         get().addFeedback({
@@ -204,6 +253,89 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
   setCurrentLesson: (lesson: Lesson) => {
     set({ currentLesson: lesson });
+  },
+
+  // ── Student Auth & Cloud Sync ─────────────────────────────────────────
+
+  user: null,
+  cloudSyncStatus: isSupabaseConfigured() ? "offline" : "unconfigured",
+  lastCloudSync: null,
+
+  setUser: (user: StudentUser | null) => {
+    set({ user });
+  },
+
+  initAuth: () => {
+    if (typeof window === "undefined") return () => {};
+
+    if (!isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "unconfigured" });
+      return () => {};
+    }
+
+    const client = getSupabaseClient();
+    if (!client) {
+      set({ cloudSyncStatus: "unconfigured" });
+      return () => {};
+    }
+
+    // Check existing session
+    client.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const student = mapSupabaseUser(session.user);
+        set({ user: student });
+        get().syncWithCloud();
+      } else {
+        set({ user: null, cloudSyncStatus: "offline" });
+      }
+    });
+
+    // Subscribe to auth state changes (login, logout, token refresh)
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const student = mapSupabaseUser(session.user);
+        set({ user: student });
+        await get().syncWithCloud();
+      } else {
+        set({ user: null, cloudSyncStatus: "offline" });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  },
+
+  syncWithCloud: async () => {
+    const user = get().user;
+    if (!user || !isSupabaseConfigured()) return;
+
+    set({ cloudSyncStatus: "syncing" });
+
+    try {
+      const cloudData = await fetchCloudProgress(user.id);
+      const localData = get().progress;
+
+      // Merge local and cloud progress safely
+      const merged = mergeProgress(localData, cloudData || {});
+
+      // Persist merged progress locally
+      saveProgress(merged);
+      set({ progress: merged });
+
+      // Save back to cloud so both are in perfect parity
+      const ok = await saveCloudProgress(user.id, merged, user.email);
+      if (ok) {
+        set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+      } else {
+        set({ cloudSyncStatus: "error" });
+      }
+    } catch (e) {
+      console.error("[store] syncWithCloud failed:", e);
+      set({ cloudSyncStatus: "error" });
+    }
   },
 
   // ── Progress ──────────────────────────────────────────────────────────
@@ -233,6 +365,19 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
     saveProgress(updatedProgress);
     set({ progress: updatedProgress });
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
   },
 
   toggleTask: (lessonSlug: string, taskId: string) => {
@@ -262,6 +407,19 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
     if (!isDone) {
       toast.success("Task marked complete");
+    }
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
     }
   },
 

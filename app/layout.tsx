@@ -1,5 +1,6 @@
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -18,9 +19,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="h-full">
       <body className="h-full bg-background text-foreground antialiased font-sans">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          {children}
-          <Toaster richColors position="top-right" />
-          <Analytics />
+          <AuthProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+            <Analytics />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

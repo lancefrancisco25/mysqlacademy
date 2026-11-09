@@ -199,6 +199,22 @@ export interface LessonProgress {
   lastAccessed: number;
 }
 
+// ─── Student Authentication & Cloud Sync ───────────────────────────────────
+
+export interface StudentUser {
+  id: string;
+  email?: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
+export type CloudSyncStatus =
+  | "unconfigured"
+  | "offline"
+  | "syncing"
+  | "synced"
+  | "error";
+
 // ─── Track Metadata ────────────────────────────────────────────────────────
 
 export interface TrackInfo {

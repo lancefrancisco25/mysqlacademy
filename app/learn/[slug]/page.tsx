@@ -292,7 +292,7 @@ export default function LessonWorkspacePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {viewMode === "lab" ? (
+          {viewMode === "lab" && (
             <Button
               variant="outline"
               size="sm"
@@ -303,15 +303,6 @@ export default function LessonWorkspacePage() {
             >
               <RotateCcw className={`h-3 w-3 ${isResetting ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Reset DB</span>
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => setViewMode("lab")}
-              className="h-7 px-3 text-xs gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
-            >
-              <span>Practice in Lab</span>
-              <ChevronRight className="h-3 w-3" />
             </Button>
           )}
         </div>
