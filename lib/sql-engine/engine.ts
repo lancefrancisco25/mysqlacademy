@@ -207,3 +207,15 @@ export function getTableData(tableName: string): QueryResult | null {
 export function getRawDB(): Database | null {
   return db;
 }
+
+/**
+ * Safely roll back any open in-flight transaction, resetting the DB connection to autocommit mode.
+ */
+export function rollbackIfInTransaction(): void {
+  if (!db) return;
+  try {
+    db.exec("ROLLBACK;");
+  } catch {
+    // Ignore if no transaction is active
+  }
+}

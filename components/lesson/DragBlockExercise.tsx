@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   GripVertical,
   CheckCircle2,
@@ -34,6 +34,14 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
   const [status, setStatus] = useState<"correct" | "incorrect" | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
+
+  // Sync / reset when navigating to another exercise
+  useEffect(() => {
+    setAvailableBlocks([...exercise.blocks].sort(() => 0.5 - Math.random()));
+    setPlacedBlocks([]);
+    setStatus(null);
+    setShowHint(false);
+  }, [exercise.id, exercise.blocks]);
 
   // Click to place block from available into placed
   const handleAddBlock = (block: DragBlock) => {

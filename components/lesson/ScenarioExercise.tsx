@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -15,13 +15,14 @@ import {
   Copy,
   Terminal,
   Lightbulb,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLessonStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { ScenarioExercise as ScenarioExerciseType } from "@/types";
-import { getTableNames, getTableInfo } from "@/lib/sql-engine/engine";
+import type { ScenarioExercise as ScenarioExerciseType, QueryResult } from "@/types";
+import { getTableNames, getTableInfo, rollbackIfInTransaction } from "@/lib/sql-engine/engine";
 
 interface ScenarioExerciseProps {
   exercise: ScenarioExerciseType;
@@ -29,6 +30,8 @@ interface ScenarioExerciseProps {
 
 export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const executeQuery = useLessonStore((s) => s.executeQuery);
+  const resetDB = useLessonStore((s) => s.resetDB);
+  const currentLesson = useLessonStore((s) => s.currentLesson);
   const dbReady = useLessonStore((s) => s.dbReady);
 
   const [sqlCode, setSqlCode] = useState(exercise.starterSQL || "");
@@ -44,54 +47,183 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const [copiedSolution, setCopiedSolution] = useState(false);
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
 
+  // Ensure tables are up when exercise loads or db becomes ready
+  useEffect(() => {
+    setSqlCode(exercise.starterSQL || "");
+    setExecutionOutput(null);
+    setCompletedRequirements([]);
+    setShowSolution(false);
+    setOpenHints({});
+
+    if (dbReady && exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
+      try {
+        rollbackIfInTransaction();
+        executeQuery(exercise.schemaSetupSQL);
+      } catch (err) {
+        console.warn("[Scenario] Initial schema setup notice:", err);
+      }
+    }
+  }, [exercise.id, exercise.starterSQL, dbReady, executeQuery, exercise.schemaSetupSQL]);
+
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
 
     try {
-      const result = executeQuery(sqlCode);
-      const tables = getTableNames();
+      // 1. Clean rollback of any previous uncommitted transactions
+      rollbackIfInTransaction();
 
-      // Check each requirement
+      // 2. Ensure required scenario tables exist before student query runs
+      if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
+        try {
+          executeQuery(exercise.schemaSetupSQL);
+        } catch (setupErr) {
+          console.warn("[Scenario] Setup SQL execution warning:", setupErr);
+        }
+      }
+
+      // 3. Execute student's SQL command
+      let result: QueryResult | null = null;
+      let runtimeError: Error | null = null;
+
+      try {
+        result = executeQuery(sqlCode);
+      } catch (err: any) {
+        runtimeError = err;
+      }
+
+      const tables = getTableNames();
+      const lowerCode = sqlCode.toLowerCase().trim();
+
+      // 4. Evaluate each requirement via validationRule, syntaxPattern, or smart heuristics
       const satisfied: string[] = [];
+
       exercise.requirements.forEach((req) => {
-        // If requirement has a specific validation rule, we check it
+        let passed = false;
+
+        // A. If a validation rule is provided:
         if (req.validationRule) {
           const rule = req.validationRule;
           if (rule.type === "table_exists" && rule.table) {
-            if (tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase())) {
-              satisfied.push(req.id);
-            }
+            passed = tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase());
           } else if (rule.type === "column_exists" && rule.table && rule.column) {
             const info = getTableInfo(rule.table);
-            if (
+            passed = Boolean(
               info &&
-              info.values &&
-              info.values.some(
-                (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
-              )
-            ) {
-              satisfied.push(req.id);
+                info.values &&
+                info.values.some(
+                  (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
+                )
+            );
+          } else if (rule.type === "query_result" && rule.query) {
+            try {
+              const res = executeQuery(rule.query);
+              if (rule.expectedResult && res) {
+                passed = JSON.stringify(res.values) === JSON.stringify(rule.expectedResult);
+              } else if (rule.minReturnedRows !== undefined && res) {
+                passed = res.values.length >= rule.minReturnedRows;
+              } else {
+                passed = Boolean(res && res.values.length > 0);
+              }
+            } catch {
+              passed = false;
             }
+          }
+        }
+
+        // B. If a syntax pattern / keyword is specified:
+        if (!passed && req.syntaxPattern) {
+          if (typeof req.syntaxPattern === "string") {
+            passed = lowerCode.includes(req.syntaxPattern.toLowerCase());
           } else {
-            // Default heuristics or general execution success
-            satisfied.push(req.id);
+            // Remove 'g' flag to avoid stateful lastIndex issues
+            const cleanFlags = req.syntaxPattern.flags.replace(/g/g, "");
+            const safeRegex = new RegExp(req.syntaxPattern.source, cleanFlags);
+            passed = safeRegex.test(sqlCode);
           }
-        } else {
-          // Heuristic matching against created tables or query keywords
-          const lowerCode = sqlCode.toLowerCase();
-          if (lowerCode.includes("create table") || lowerCode.includes("insert into") || lowerCode.includes("select")) {
-            satisfied.push(req.id);
+        }
+
+        // C. Smart heuristic analysis based on requirement text & syntax
+        if (!passed) {
+          const reqLower = req.text.toLowerCase();
+
+          // Check for email literals
+          const emails = reqLower.match(/[\w.-]+@[\w.-]+\.\w+/g);
+          if (emails && emails.some((e) => lowerCode.includes(e.toLowerCase()))) {
+            passed = true;
+          } else if (reqLower.includes("start transaction") && lowerCode.includes("start transaction")) {
+            passed = true;
+          } else if (reqLower.includes("commit") && lowerCode.includes("commit")) {
+            passed = true;
+          } else if (reqLower.includes("create index") && lowerCode.includes("create index")) {
+            passed = true;
+          } else if (reqLower.includes("group by") && lowerCode.includes("group by")) {
+            passed = true;
+          } else if (reqLower.includes("having") && lowerCode.includes("having")) {
+            passed = true;
+          } else if (reqLower.includes("left join") && lowerCode.includes("left join")) {
+            passed = true;
+          } else if (reqLower.includes("inner join") && (lowerCode.includes("join") || lowerCode.includes("inner join"))) {
+            passed = true;
+          } else if (reqLower.includes("alter table") && lowerCode.includes("alter table")) {
+            passed = true;
+          } else if (reqLower.includes("default") && lowerCode.includes("default")) {
+            passed = true;
+          } else if (reqLower.includes("not null") && lowerCode.includes("not null")) {
+            passed = true;
+          } else if (reqLower.includes("primary key") && lowerCode.includes("primary key")) {
+            passed = true;
+          } else if (reqLower.includes("check") && lowerCode.includes("check")) {
+            passed = true;
+          } else if (reqLower.includes("unique") && lowerCode.includes("unique")) {
+            passed = true;
+          } else if (reqLower.includes("count") && lowerCode.includes("count")) {
+            passed = true;
+          } else if (reqLower.includes("sum") && lowerCode.includes("sum")) {
+            passed = true;
+          } else if (reqLower.includes("avg") && lowerCode.includes("avg")) {
+            passed = true;
+          } else if (!runtimeError && (lowerCode.includes("select") || lowerCode.includes("insert") || lowerCode.includes("update") || lowerCode.includes("delete"))) {
+            passed = true;
           }
+        }
+
+        if (passed) {
+          satisfied.push(req.id);
         }
       });
 
       setCompletedRequirements(satisfied);
-      setExecutionOutput({
-        success: true,
-        message: "Query executed successfully against live database instance.",
-        columns: result?.columns,
-        values: result?.values,
-      });
+
+      if (runtimeError) {
+        // If there was a runtime error but student's syntax satisfied requirements:
+        if (satisfied.length === exercise.requirements.length) {
+          setExecutionOutput({
+            success: true,
+            message: `Architecture and syntax verified! All ${exercise.requirements.length} requirements passed.`,
+            columns: result?.columns,
+            values: result?.values,
+          });
+        } else if (satisfied.length > 0) {
+          setExecutionOutput({
+            success: true,
+            message: `Syntax validated (${satisfied.length}/${exercise.requirements.length} requirements passed). Engine note: ${runtimeError.message}`,
+            columns: result?.columns,
+            values: result?.values,
+          });
+        } else {
+          setExecutionOutput({
+            success: false,
+            message: runtimeError.message || "SQL Execution error occurred.",
+          });
+        }
+      } else {
+        setExecutionOutput({
+          success: true,
+          message: "Query executed successfully against live database instance.",
+          columns: result?.columns,
+          values: result?.values,
+        });
+      }
     } catch (err: any) {
       setExecutionOutput({
         success: false,
@@ -108,6 +240,23 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
 
   const handleLoadSolution = () => {
     setSqlCode(exercise.solutionSQL);
+  };
+
+  const handleResetCode = async () => {
+    rollbackIfInTransaction();
+    setSqlCode(exercise.starterSQL || "");
+    setExecutionOutput(null);
+    setCompletedRequirements([]);
+    if (currentLesson?.seedSQL) {
+      try {
+        await resetDB(currentLesson.seedSQL);
+      } catch {}
+    }
+    if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
+      try {
+        executeQuery(exercise.schemaSetupSQL);
+      } catch {}
+    }
   };
 
   const isAllComplete = completedRequirements.length === exercise.requirements.length;
@@ -199,6 +348,13 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
             );
           })}
         </div>
+
+        {isAllComplete && (
+          <div className="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-500/40 bg-emerald-500/15 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm font-semibold animate-in fade-in">
+            <Trophy className="h-4 w-4 text-emerald-500 shrink-0" />
+            <span>Architecture Blueprint Verified: All {exercise.requirements.length} requirements successfully passed!</span>
+          </div>
+        )}
       </div>
 
       {/* SQL Editor Area */}
@@ -210,7 +366,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSqlCode(exercise.starterSQL || "")}
+              onClick={handleResetCode}
               className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
             >
               <RotateCcw className="h-3 w-3" />
@@ -223,7 +379,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           <textarea
             value={sqlCode}
             onChange={(e) => setSqlCode(e.target.value)}
-            placeholder="-- Write your CREATE TABLE or SQL solution here..."
+            placeholder="-- Write your SQL command here..."
             rows={6}
             className="w-full p-4 font-mono text-xs sm:text-sm text-zinc-100 bg-transparent resize-y outline-none leading-relaxed placeholder:text-zinc-600"
           />

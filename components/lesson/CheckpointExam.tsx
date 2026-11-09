@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Award,
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLessonStore } from "@/lib/store";
 import { validateTask } from "@/lib/agents/validator";
+import { rollbackIfInTransaction } from "@/lib/sql-engine/engine";
 import { cn } from "@/lib/utils";
 import type { CheckpointExam as CheckpointExamType, CheckpointQuestion, Task } from "@/types";
 
@@ -65,6 +66,21 @@ export function CheckpointExam({
     return initial;
   });
 
+  // Reset/sync question states whenever exam changes
+  useEffect(() => {
+    const initial: Record<string, any> = {};
+    exam.questions.forEach((q) => {
+      initial[q.id] = {
+        code: "",
+        passed: false,
+        feedback: undefined,
+        showHint: false,
+        showSolution: false,
+      };
+    });
+    setQuestionStates(initial);
+  }, [exam.id, exam.questions]);
+
   const handleCodeChange = (id: string, val: string) => {
     setQuestionStates((prev) => ({
       ...prev,
@@ -100,6 +116,7 @@ export function CheckpointExam({
     if (!currentCode.trim()) return;
 
     try {
+      rollbackIfInTransaction();
       const result = executeQuery(currentCode);
 
       // Construct a Task-like structure for the validator

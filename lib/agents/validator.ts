@@ -27,7 +27,7 @@ export function validateTask(
     const pattern =
       typeof rule.queryPattern === "string"
         ? new RegExp(rule.queryPattern, "i")
-        : rule.queryPattern;
+        : new RegExp(rule.queryPattern.source, rule.queryPattern.flags.replace(/g/g, ""));
     const raw = query || "";
     const normalized = raw.replace(/\s+/g, " ").trim();
     if (!pattern.test(raw) && !pattern.test(normalized)) {
@@ -82,7 +82,7 @@ export function validateTask(
     case "value_check":
       return validateValueCheck(rule);
     case "query_result":
-      return validateQueryResult(rule);
+      return validateQueryResult(rule, result);
     case "custom":
       return { passed: false, reason: "Custom validation not implemented" };
     default:
@@ -208,24 +208,70 @@ function validateValueCheck(rule: ValidationRule): ValidationResult {
   }
 }
 
-function validateQueryResult(rule: ValidationRule): ValidationResult {
-  if (!rule.query)
-    return { passed: false, reason: "No verification query specified" };
+function validateQueryResult(
+  rule: ValidationRule,
+  studentResult?: QueryResult | null
+): ValidationResult {
+  // If a specific verification query is defined, run and check it
+  if (rule.query) {
+    try {
+      const result = executeSQL(rule.query);
+      if (!result || result.values.length === 0) {
+        return { passed: false, reason: rule.description || "Verification query returned empty." };
+      }
 
-  try {
-    const result = executeSQL(rule.query);
-    if (!result || result.values.length === 0) {
-      return { passed: false, reason: rule.description || "Verification query returned empty." };
+      // If expectedResult is provided, compare
+      if (rule.expectedResult) {
+        return validateValueCheck(rule);
+      }
+
+      // Otherwise just check that the query returns at least one row
+      return { passed: true };
+    } catch (e: any) {
+      return { passed: false, reason: `Verification failed: ${e.message}` };
     }
-
-    // If expectedResult is provided, compare
-    if (rule.expectedResult) {
-      return validateValueCheck(rule);
-    }
-
-    // Otherwise just check that the query returns at least one row
-    return { passed: true };
-  } catch (e: any) {
-    return { passed: false, reason: `Verification failed: ${e.message}` };
   }
+
+  // Fallback: evaluate the student's executed query result
+  if (studentResult) {
+    if (rule.expectedResult) {
+      const actual = studentResult.values;
+      const expected = rule.expectedResult;
+      if (actual.length !== expected.length) {
+        return {
+          passed: false,
+          reason: rule.description || `Expected ${expected.length} rows, got ${actual.length}.`,
+        };
+      }
+      for (let i = 0; i < expected.length; i++) {
+        for (let j = 0; j < expected[i].length; j++) {
+          const aVal = String(actual[i]?.[j] ?? "").trim().toLowerCase();
+          const eVal = String(expected[i]?.[j] ?? "").trim().toLowerCase();
+          if (aVal !== eVal) {
+            return {
+              passed: false,
+              reason: rule.description || `Row ${i + 1} does not match expected values.`,
+            };
+          }
+        }
+      }
+      return { passed: true };
+    }
+
+    if (rule.minReturnedRows !== undefined) {
+      if (studentResult.values.length >= rule.minReturnedRows) {
+        return { passed: true };
+      }
+      return {
+        passed: false,
+        reason: `Expected at least ${rule.minReturnedRows} rows, got ${studentResult.values.length}.`,
+      };
+    }
+
+    if (studentResult.values.length > 0) {
+      return { passed: true };
+    }
+  }
+
+  return { passed: false, reason: "No verification query or result available." };
 }

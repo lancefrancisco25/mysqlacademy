@@ -104,6 +104,7 @@ export interface ScenarioRequirement {
   text: string;
   hint?: string;
   validationRule?: ValidationRule;
+  syntaxPattern?: string | RegExp;
 }
 
 export interface ScenarioExercise {
@@ -113,6 +114,7 @@ export interface ScenarioExercise {
   companyOrContext: string;
   problemStatement: string;
   requirements: ScenarioRequirement[];
+  schemaSetupSQL?: string;
   starterSQL?: string;
   solutionSQL: string;
   solutionExplanation: string;

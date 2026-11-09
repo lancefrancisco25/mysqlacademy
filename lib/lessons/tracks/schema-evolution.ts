@@ -107,21 +107,28 @@ export const schemaEvolutionLessons: Lesson[] = [
         companyOrContext: "ApexPay Regulatory Compliance",
         problemStatement:
           "Due to new banking regulations, all accounts in the `accounts` table must track KYC (Know Your Customer) compliance status.\n\nWrite an ALTER TABLE statement to add a new column named `kyc_status` (VARCHAR 30) with a DEFAULT value of 'pending' and NOT NULL to the `accounts` table.",
+        schemaSetupSQL:
+          "CREATE TABLE IF NOT EXISTS accounts (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  account_number VARCHAR(30) NOT NULL UNIQUE,\n  balance REAL NOT NULL DEFAULT 0.0\n);\nINSERT OR IGNORE INTO accounts (id, account_number, balance) VALUES\n  (1, 'ACC-1001', 5420.50),\n  (2, 'ACC-1002', 12300.00);",
         requirements: [
           {
             id: "req-1",
             text: "Target table accounts with ALTER TABLE",
             hint: "ALTER TABLE accounts",
+            validationRule: { type: "table_exists", table: "accounts" },
+            syntaxPattern: /alter\s+table\s+accounts/i,
           },
           {
             id: "req-2",
             text: "Add column kyc_status VARCHAR(30)",
             hint: "ADD COLUMN kyc_status VARCHAR(30)",
+            validationRule: { type: "column_exists", table: "accounts", column: "kyc_status" },
+            syntaxPattern: /add\s+(column\s+)?kyc_status\s+varchar(\s*\(\s*30\s*\))?/i,
           },
           {
             id: "req-3",
             text: "Include NOT NULL DEFAULT 'pending'",
             hint: "NOT NULL DEFAULT 'pending'",
+            syntaxPattern: /(not\s+null\s+default\s+['"]pending['"]|default\s+['"]pending['"]\s+not\s+null)/i,
           },
         ],
         solutionSQL:
@@ -287,18 +294,21 @@ export const schemaEvolutionLessons: Lesson[] = [
             text: "Create table wallets",
             hint: "CREATE TABLE wallets (...)",
             validationRule: { type: "table_exists", table: "wallets" },
+            syntaxPattern: /create\s+table\s+(if\s+not\s+exists\s+)?wallets/i,
           },
           {
             id: "req-2",
             text: "Column wallet_address VARCHAR(64) UNIQUE NOT NULL",
             hint: "wallet_address VARCHAR(64) UNIQUE NOT NULL",
             validationRule: { type: "column_exists", table: "wallets", column: "wallet_address" },
+            syntaxPattern: /wallet_address\s+varchar(\s*\(\s*64\s*\))?[\s\S]*(unique\s+not\s+null|not\s+null\s+unique)/i,
           },
           {
             id: "req-3",
             text: "Column balance REAL CHECK(balance >= 0)",
             hint: "balance REAL CHECK(balance >= 0)",
             validationRule: { type: "column_exists", table: "wallets", column: "balance" },
+            syntaxPattern: /balance\s+real[\s\S]*check\s*\(\s*balance\s*>=\s*0\s*\)/i,
           },
         ],
         solutionSQL:

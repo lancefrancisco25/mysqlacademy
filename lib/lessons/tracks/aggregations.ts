@@ -117,26 +117,32 @@ export const aggregationsLessons: Lesson[] = [
         companyOrContext: "ApexPay Clearinghouse",
         problemStatement:
           "You are the quantitative risk analyst at ApexPay. The executive risk committee needs an aggregate exposure report on all approved international transactions.\n\nTable: `transfers (id, amount, status, country)`.\nWrite a query calculating:\n1. Total count of transfers as `total_transfers`\n2. Total value as `total_exposure`\n3. Average transfer size as `avg_transfer`\nOnly include rows where `status = 'approved'` and `country != 'US'`.",
+        schemaSetupSQL:
+          "CREATE TABLE IF NOT EXISTS transfers (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  amount REAL NOT NULL,\n  status VARCHAR(20) NOT NULL,\n  country VARCHAR(10) NOT NULL\n);\nINSERT OR IGNORE INTO transfers (id, amount, status, country) VALUES\n  (1, 1500, 'approved', 'UK'),\n  (2, 2300, 'approved', 'DE'),\n  (3, 4100, 'pending', 'FR'),\n  (4, 800, 'approved', 'US'),\n  (5, 3400, 'approved', 'JP'),\n  (6, 1200, 'declined', 'UK');",
         requirements: [
           {
             id: "req-1",
             text: "Calculate COUNT(*) as total_transfers",
             hint: "COUNT(*) AS total_transfers",
+            syntaxPattern: /count\s*\(\s*\*?\s*\)\s+(as\s+)?total_transfers/i,
           },
           {
             id: "req-2",
             text: "Calculate SUM(amount) as total_exposure",
             hint: "SUM(amount) AS total_exposure",
+            syntaxPattern: /sum\s*\(\s*amount\s*\)\s+(as\s+)?total_exposure/i,
           },
           {
             id: "req-3",
             text: "Calculate AVG(amount) as avg_transfer",
             hint: "AVG(amount) AS avg_transfer",
+            syntaxPattern: /avg\s*\(\s*amount\s*\)\s+(as\s+)?avg_transfer/i,
           },
           {
             id: "req-4",
             text: "Filter WHERE status = 'approved' AND country != 'US'",
             hint: "WHERE status = 'approved' AND country != 'US'",
+            syntaxPattern: /where[\s\S]*status\s*=\s*['"]approved['"][\s\S]*country\s*(!=|<>)\s*['"]US['"]/i,
           },
         ],
         solutionSQL:
@@ -299,21 +305,26 @@ export const aggregationsLessons: Lesson[] = [
         companyOrContext: "Academic Analytics Bureau",
         problemStatement:
           "The university provost is conducting an academic audit. You need to identify departments that have high student volume.\n\nTable: `students (id, name, department, gpa)`.\nWrite a query that displays:\n1. Column `department`\n2. Average GPA as `avg_gpa` rounded to 2 decimal places\n3. Total student count as `student_count`\nGroup by `department` and only include departments that have at least 3 students.",
+        schemaSetupSQL:
+          "CREATE TABLE IF NOT EXISTS students (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  department VARCHAR(100) NOT NULL,\n  gpa REAL NOT NULL\n);\nINSERT OR IGNORE INTO students (id, name, department, gpa) VALUES\n  (1, 'Alice Chen', 'Computer Science', 3.85),\n  (2, 'Bob Smith', 'Computer Science', 3.60),\n  (3, 'Charlie Brown', 'Computer Science', 3.90),\n  (4, 'Diana Prince', 'Mathematics', 3.75),\n  (5, 'Evan Wright', 'Mathematics', 3.40),\n  (6, 'Fiona Gallagher', 'Physics', 3.95),\n  (7, 'George Clark', 'Physics', 3.80),\n  (8, 'Hannah Abbott', 'Physics', 3.65);",
         requirements: [
           {
             id: "req-1",
             text: "Select department, ROUND(AVG(gpa), 2) as avg_gpa, COUNT(*) as student_count",
             hint: "SELECT department, ROUND(AVG(gpa), 2) AS avg_gpa, COUNT(*) AS student_count",
+            syntaxPattern: /select[\s\S]*department[\s\S]*(round\s*\(\s*)?avg\s*\(\s*gpa\s*\)[\s\S]*count\s*\(\s*\*?\s*\)/i,
           },
           {
             id: "req-2",
             text: "Group by department",
             hint: "GROUP BY department",
+            syntaxPattern: /group\s+by\s+department/i,
           },
           {
             id: "req-3",
             text: "Filter with HAVING COUNT(*) >= 3",
             hint: "HAVING COUNT(*) >= 3",
+            syntaxPattern: /having\s+count\s*\(\s*\*?\s*\)\s*>=\s*3/i,
           },
         ],
         solutionSQL:

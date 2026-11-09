@@ -112,26 +112,32 @@ export const transactionsLessons: Lesson[] = [
         companyOrContext: "Grand Plaza Hotels & Resorts",
         problemStatement:
           "You are writing the booking engine for Grand Plaza Hotels. When a guest books a suite, you must perform two operations atomically:\n1. Insert a booking record into `bookings (guest_name, room_type, nights)` for 'David Miller', 'Deluxe Suite', 3 nights.\n2. Deduct 1 from `available_rooms` in `room_inventory` WHERE `room_type = 'Deluxe Suite'`.\nWrap both operations in an atomic transaction so an overbooking never records a reservation without deducting a room.",
+        schemaSetupSQL:
+          "CREATE TABLE IF NOT EXISTS bookings (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  guest_name VARCHAR(100) NOT NULL,\n  room_type VARCHAR(50) NOT NULL,\n  nights INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS room_inventory (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  room_type VARCHAR(50) UNIQUE NOT NULL,\n  available_rooms INTEGER NOT NULL\n);\nINSERT OR IGNORE INTO room_inventory (id, room_type, available_rooms) VALUES\n  (1, 'Deluxe Suite', 8),\n  (2, 'Standard Queen', 15),\n  (3, 'Executive Penthouse', 2);",
         requirements: [
           {
             id: "req-1",
             text: "Start with START TRANSACTION;",
             hint: "START TRANSACTION;",
+            syntaxPattern: /(start\s+transaction|begin(\s+transaction)?)/i,
           },
           {
             id: "req-2",
             text: "Insert booking for David Miller",
             hint: "INSERT INTO bookings (guest_name, room_type, nights) VALUES ('David Miller', 'Deluxe Suite', 3);",
+            syntaxPattern: /insert\s+into\s+bookings[\s\S]*David Miller[\s\S]*Deluxe Suite[\s\S]*3/i,
           },
           {
             id: "req-3",
             text: "Update room inventory",
             hint: "UPDATE room_inventory SET available_rooms = available_rooms - 1 WHERE room_type = 'Deluxe Suite';",
+            syntaxPattern: /update\s+room_inventory\s+set\s+available_rooms\s*=\s*available_rooms\s*-\s*1[\s\S]*Deluxe Suite/i,
           },
           {
             id: "req-4",
             text: "Commit with COMMIT;",
             hint: "COMMIT;",
+            syntaxPattern: /commit/i,
           },
         ],
         solutionSQL:
@@ -288,16 +294,20 @@ export const transactionsLessons: Lesson[] = [
         companyOrContext: "StreamFlix Global CDN",
         problemStatement:
           "StreamFlix logs 50 million video playback heartbeat events per day in the `playback_events` table.\n\nSlow query alert:\n`SELECT * FROM playback_events WHERE user_id = 9481 AND device_type = 'smart_tv';`\nThis query is performing a full table scan and taking 4.2 seconds. Write a DDL statement creating a composite index named `idx_playback_user_device` covering `user_id` and `device_type` on the `playback_events` table.",
+        schemaSetupSQL:
+          "CREATE TABLE IF NOT EXISTS playback_events (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  user_id INTEGER NOT NULL,\n  device_type VARCHAR(50) NOT NULL,\n  event_time DATETIME\n);\nINSERT OR IGNORE INTO playback_events (id, user_id, device_type, event_time) VALUES\n  (1, 9481, 'smart_tv', '2025-01-10 14:22:00'),\n  (2, 9481, 'mobile', '2025-01-10 15:10:00'),\n  (3, 1024, 'desktop', '2025-01-10 16:05:00');",
         requirements: [
           {
             id: "req-1",
             text: "Create index idx_playback_user_device",
             hint: "CREATE INDEX idx_playback_user_device",
+            syntaxPattern: /create\s+index\s+(if\s+not\s+exists\s+)?idx_playback_user_device/i,
           },
           {
             id: "req-2",
             text: "Target table playback_events covering user_id, device_type",
             hint: "ON playback_events(user_id, device_type);",
+            syntaxPattern: /on\s+playback_events\s*\(\s*user_id\s*,\s*device_type\s*\)/i,
           },
         ],
         solutionSQL:

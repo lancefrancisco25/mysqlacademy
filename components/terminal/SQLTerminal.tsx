@@ -200,6 +200,16 @@ export default function SQLTerminal() {
         e.preventDefault();
         const line = currentInput;
 
+        // Allow \c to cancel/clear the in-flight multiline buffer
+        if (line.trim().toLowerCase() === "\\c") {
+          addToHistory({ type: "input", content: multilineBuffer ? `    -> ${line}` : `mysql> ${line}` });
+          setMultilineBuffer("");
+          setCurrentInput("");
+          setSuggestions([]);
+          resetIndex();
+          return;
+        }
+
         if (multilineBuffer) {
           const full = multilineBuffer + " " + line.trim();
           addToHistory({ type: "input", content: `    -> ${line}` });
