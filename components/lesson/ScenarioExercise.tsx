@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
+  AlertTriangle,
   Check,
   Copy,
   Terminal,
@@ -34,16 +35,54 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
   const dbReady = useLessonStore((s) => s.dbReady);
+  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const progress = useLessonStore((s) => s.progress);
+  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
-  const [sqlCode, setSqlCode] = useState(exercise.starterSQL || "");
+  const [completedRequirements, setCompletedRequirements] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-scenario-${exercise.id}`);
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s?.completed && Array.isArray(s.completedRequirements)) {
+            return s.completedRequirements;
+          }
+        }
+        const curLesson = useLessonStore.getState().currentLesson;
+        if (curLesson && useLessonStore.getState().isLessonCompleted(curLesson.slug)) {
+          return exercise.requirements.map((r) => r.id);
+        }
+      } catch {}
+    }
+    return [];
+  });
+
+  const [sqlCode, setSqlCode] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-scenario-${exercise.id}`);
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s?.completed && s.code) return s.code;
+          if (s?.completed) return exercise.solutionSQL;
+        }
+        const curLesson = useLessonStore.getState().currentLesson;
+        if (curLesson && useLessonStore.getState().isLessonCompleted(curLesson.slug)) {
+          return exercise.solutionSQL;
+        }
+      } catch {}
+    }
+    return exercise.starterSQL || "";
+  });
+
   const [executionOutput, setExecutionOutput] = useState<{
-    success: boolean;
+    status: "correct" | "partial" | "incorrect";
     message: string;
     columns?: string[];
     values?: (string | number | null)[][];
   } | null>(null);
 
-  const [completedRequirements, setCompletedRequirements] = useState<string[]>([]);
   const [showSolution, setShowSolution] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
@@ -67,10 +106,11 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       } catch {}
     }
 
-    if (savedState?.completed) {
-      setCompletedRequirements(savedState.completedRequirements || exercise.requirements.map((r) => r.id));
-      if (savedState.code) setSqlCode(savedState.code);
-      setShowSolution(true);
+    if (savedState?.completed || isLessonDone) {
+      setCompletedRequirements(exercise.requirements.map((r) => r.id));
+      setSqlCode(exercise.solutionSQL);
+      // Do NOT open solution or hints automatically unless user explicitly clicks
+      setShowSolution(false);
     } else {
       setSqlCode(exercise.starterSQL || "");
       setCompletedRequirements([]);
@@ -112,7 +152,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         console.warn("[Scenario] Initial schema setup notice:", err);
       }
     }
-  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, dbReady, executeQuery, exercise.schemaSetupSQL]);
+  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, exercise.solutionSQL, isLessonDone, dbReady, executeQuery, exercise.schemaSetupSQL]);
 
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
@@ -243,9 +283,8 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
 
       setCompletedRequirements(satisfied);
 
-      // Persist completion and auto-reveal solution even across page refreshes
+      // Persist completion state across page refreshes (do NOT auto-open hints or solutions unless clicked)
       if (satisfied.length === exercise.requirements.length) {
-        setShowSolution(true);
         if (typeof window !== "undefined") {
           try {
             localStorage.setItem(
@@ -261,39 +300,34 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         }
       }
 
-      if (runtimeError) {
-        // If there was a runtime error but student's syntax satisfied requirements:
-        if (satisfied.length === exercise.requirements.length) {
-          setExecutionOutput({
-            success: true,
-            message: `Architecture and syntax verified! All ${exercise.requirements.length} requirements passed.`,
-            columns: result?.columns,
-            values: result?.values,
-          });
-        } else if (satisfied.length > 0) {
-          setExecutionOutput({
-            success: true,
-            message: `Syntax validated (${satisfied.length}/${exercise.requirements.length} requirements passed). Engine note: ${runtimeError.message}`,
-            columns: result?.columns,
-            values: result?.values,
-          });
-        } else {
-          setExecutionOutput({
-            success: false,
-            message: runtimeError.message || "SQL Execution error occurred.",
-          });
-        }
+      const isAllDone = satisfied.length === exercise.requirements.length;
+      const isPartial = satisfied.length > 0 && !isAllDone;
+
+      if (isAllDone) {
+        setExecutionOutput({
+          status: "correct",
+          message: `Correct! All ${exercise.requirements.length} requirements met.`,
+          columns: result?.columns,
+          values: result?.values,
+        });
+      } else if (isPartial) {
+        setExecutionOutput({
+          status: "partial",
+          message: `Partially correct (${satisfied.length}/${exercise.requirements.length} requirements met). Keep going until all are correct!${runtimeError ? ` (Note: ${runtimeError.message})` : ""}`,
+          columns: result?.columns,
+          values: result?.values,
+        });
       } else {
         setExecutionOutput({
-          success: true,
-          message: "Query executed successfully against live database instance.",
+          status: "incorrect",
+          message: runtimeError?.message || "No requirements met yet. Check your SQL syntax.",
           columns: result?.columns,
           values: result?.values,
         });
       }
     } catch (err: any) {
       setExecutionOutput({
-        success: false,
+        status: "incorrect",
         message: err.message || "SQL Execution error occurred.",
       });
     }
@@ -437,11 +471,20 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         </div>
       )}
 
-      {/* Architecture Requirements Checklist */}
+      {/* Requirements Checklist */}
       <div className="space-y-3">
         <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-          <span>Schema Architecture Requirements</span>
-          <span>
+          <span>Requirements</span>
+          <span
+            className={cn(
+              "px-2 py-0.5 rounded text-[11px] font-mono",
+              completedRequirements.length === exercise.requirements.length && exercise.requirements.length > 0
+                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
+                : completedRequirements.length > 0
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold"
+                : "text-muted-foreground"
+            )}
+          >
             {completedRequirements.length}/{exercise.requirements.length} Completed
           </span>
         </h4>
@@ -503,10 +546,10 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
                 </div>
                 <div>
                   <h4 className="text-sm sm:text-base font-bold text-foreground">
-                    Scenario Blueprint Verified &amp; Mastered!
+                    All Requirements Completed!
                   </h4>
                   <p className="text-xs text-muted-foreground font-sans">
-                    All {exercise.requirements.length} requirements passed. Review the canonical answer below and reset the terminal.
+                    All {exercise.requirements.length} requirements passed. You can view the right answer below or reset the database.
                   </p>
                 </div>
               </div>
@@ -519,7 +562,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
                 className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-mono font-bold shrink-0 shadow-sm"
               >
                 <RotateCcw className={cn("h-3.5 w-3.5", isResettingTerminal && "animate-spin")} />
-                Reset Scenario Terminal
+                Reset Database
               </Button>
             </div>
 
@@ -530,42 +573,58 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
               </div>
             )}
 
-            {/* Official Reference Solution (Right Answer) */}
+            {/* Right Answer (Collapsed until clicked) */}
             <div className="pt-3 border-t border-emerald-500/25 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Official Reference Blueprint (Right Answer)
+                  Right Answer
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleLoadSolution}
+                    onClick={() => setShowSolution((prev) => !prev)}
                     className="h-6 text-[10px] font-mono gap-1"
                   >
-                    Insert to Editor
+                    {showSolution ? "Hide Right Answer" : "Show Right Answer"}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCopySolution}
-                    className="h-6 text-[10px] font-mono gap-1"
-                  >
-                    {copiedSolution ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                    {copiedSolution ? "Copied" : "Copy"}
-                  </Button>
+                  {showSolution && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleLoadSolution}
+                        className="h-6 text-[10px] font-mono gap-1"
+                      >
+                        Insert to Editor
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopySolution}
+                        className="h-6 text-[10px] font-mono gap-1"
+                      >
+                        {copiedSolution ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        {copiedSolution ? "Copied" : "Copy"}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <pre className="p-3.5 rounded-lg border border-zinc-800 bg-[#0c0d11] font-mono text-xs text-emerald-400 overflow-x-auto">
-                <code>{exercise.solutionSQL}</code>
-              </pre>
+              {showSolution && (
+                <div className="space-y-2 animate-in fade-in">
+                  <pre className="p-3.5 rounded-lg border border-zinc-800 bg-[#0c0d11] font-mono text-xs text-emerald-400 overflow-x-auto">
+                    <code>{exercise.solutionSQL}</code>
+                  </pre>
 
-              <p className="text-xs text-muted-foreground leading-relaxed font-sans pt-0.5">
-                💡 <strong className="text-foreground">Why this design works:</strong>{" "}
-                {exercise.solutionExplanation}
-              </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed font-sans pt-0.5">
+                    💡 <strong className="text-foreground">Why this design works:</strong>{" "}
+                    {exercise.solutionExplanation}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -576,7 +635,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Terminal className="h-3.5 w-3.5 text-emerald-500" />
-            Live SQL DDL / DML Console
+            Interactive SQL Editor
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -608,7 +667,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold gap-2"
         >
           <Play className="h-3.5 w-3.5 fill-current" />
-          Run &amp; Test Architecture
+          Run SQL
         </Button>
 
         <Button
@@ -620,12 +679,12 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           {showSolution ? (
             <>
               <ChevronUp className="h-3.5 w-3.5" />
-              Hide Solution Blueprint
+              Hide Right Answer
             </>
           ) : (
             <>
               <ChevronDown className="h-3.5 w-3.5" />
-              Reveal Teacher&apos;s Blueprint
+              Show Right Answer
             </>
           )}
         </Button>
@@ -636,14 +695,18 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         <div
           className={cn(
             "rounded-xl border p-4 space-y-2 text-xs sm:text-sm font-mono animate-in fade-in",
-            executionOutput.success
+            executionOutput.status === "correct"
               ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200"
+              : executionOutput.status === "partial"
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-200"
               : "border-red-500/40 bg-red-500/10 text-red-950 dark:text-red-200"
           )}
         >
           <div className="flex items-center gap-2 font-bold">
-            {executionOutput.success ? (
+            {executionOutput.status === "correct" ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            ) : executionOutput.status === "partial" ? (
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
             ) : (
               <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
             )}
@@ -675,13 +738,13 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         </div>
       )}
 
-      {/* Teacher Solution Accordion */}
+      {/* Right Answer Accordion */}
       {showSolution && (
         <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-5 space-y-3 animate-in fade-in">
           <div className="flex items-center justify-between">
             <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
-              Teacher&apos;s Reference Blueprint
+              Right Answer
             </h5>
             <div className="flex items-center gap-2">
               <Button
@@ -709,7 +772,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           </pre>
 
           <p className="text-xs text-muted-foreground leading-relaxed font-sans pt-1">
-            💡 <strong className="text-foreground">Why this design works:</strong>{" "}
+            💡 <strong className="text-foreground">Why this works:</strong>{" "}
             {exercise.solutionExplanation}
           </p>
         </div>

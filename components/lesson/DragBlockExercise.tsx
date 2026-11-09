@@ -5,6 +5,7 @@ import {
   GripVertical,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   RotateCcw,
   Lightbulb,
   Sparkles,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useLessonStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { DragBlockExercise as DragBlockExerciseType, DragBlock } from "@/types";
 
@@ -21,17 +23,53 @@ interface DragBlockExerciseProps {
 }
 
 export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
+  const currentLesson = useLessonStore((s) => s.currentLesson);
+  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
+
   // Available blocks not yet placed in the assembled sequence
   const [availableBlocks, setAvailableBlocks] = useState<DragBlock[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
+        const cur = useLessonStore.getState().currentLesson;
+        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().isLessonCompleted(cur.slug));
+        if (done) return [];
+      } catch {}
+    }
     // Shuffle available blocks initially so they are not in solution order
     return [...exercise.blocks].sort(() => 0.5 - Math.random());
   });
 
   // Ordered list of block IDs placed by student
-  const [placedBlocks, setPlacedBlocks] = useState<DragBlock[]>([]);
+  const [placedBlocks, setPlacedBlocks] = useState<DragBlock[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
+        const cur = useLessonStore.getState().currentLesson;
+        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().isLessonCompleted(cur.slug));
+        if (done) {
+          return exercise.solution
+            .map((id) => exercise.blocks.find((b) => b.id === id))
+            .filter(Boolean) as DragBlock[];
+        }
+      } catch {}
+    }
+    return [];
+  });
 
-  // Feedback state: null | "correct" | "incorrect"
-  const [status, setStatus] = useState<"correct" | "incorrect" | null>(null);
+  // Feedback state: null | "correct" | "partial" | "incorrect"
+  const [status, setStatus] = useState<"correct" | "partial" | "incorrect" | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
+        const cur = useLessonStore.getState().currentLesson;
+        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().isLessonCompleted(cur.slug));
+        if (done) return "correct";
+      } catch {}
+    }
+    return null;
+  });
   const [showHint, setShowHint] = useState(false);
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
 
@@ -45,7 +83,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       } catch {}
     }
 
-    if (saved?.completed) {
+    if (saved?.completed || isLessonDone) {
       const solved = exercise.solution
         .map((id) => exercise.blocks.find((b) => b.id === id))
         .filter(Boolean) as DragBlock[];
@@ -58,7 +96,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       setStatus(null);
     }
     setShowHint(false);
-  }, [exercise.id, exercise.blocks, exercise.solution]);
+  }, [exercise.id, exercise.blocks, exercise.solution, isLessonDone]);
 
   // Click to place block from available into placed
   const handleAddBlock = (block: DragBlock) => {
@@ -119,20 +157,36 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
     setDraggedBlockId(null);
   };
 
+  const [matchedCount, setMatchedCount] = useState(0);
+
   const handleCheck = () => {
     const currentOrder = placedBlocks.map((b) => b.id);
     const isCorrect =
       currentOrder.length === exercise.solution.length &&
       currentOrder.every((id, idx) => id === exercise.solution[idx]);
 
-    setStatus(isCorrect ? "correct" : "incorrect");
-    if (isCorrect && typeof window !== "undefined") {
-      try {
-        localStorage.setItem(
-          `mysql-academy-dragblock-${exercise.id}`,
-          JSON.stringify({ completed: true })
-        );
-      } catch {}
+    let count = 0;
+    for (let i = 0; i < currentOrder.length; i++) {
+      if (currentOrder[i] === exercise.solution[i]) {
+        count++;
+      }
+    }
+    setMatchedCount(count);
+
+    if (isCorrect) {
+      setStatus("correct");
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(
+            `mysql-academy-dragblock-${exercise.id}`,
+            JSON.stringify({ completed: true })
+          );
+        } catch {}
+      }
+    } else if (count > 0) {
+      setStatus("partial");
+    } else {
+      setStatus("incorrect");
     }
   };
 
@@ -221,6 +275,8 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
             "min-h-[90px] p-4 rounded-xl border-2 border-dashed transition-all flex flex-wrap items-center gap-2",
             status === "correct"
               ? "border-emerald-500/80 bg-emerald-500/10"
+              : status === "partial"
+              ? "border-amber-500/80 bg-amber-500/10"
               : status === "incorrect"
               ? "border-red-500/80 bg-red-500/10"
               : placedBlocks.length === 0
@@ -244,6 +300,8 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
                   "cursor-pointer group select-none flex items-center gap-1.5 px-3 py-2 rounded-lg font-mono text-xs sm:text-sm font-semibold border transition-all duration-150 shadow-xs",
                   status === "correct"
                     ? "bg-emerald-600 text-white border-emerald-500"
+                    : status === "partial"
+                    ? "bg-amber-500/20 text-amber-900 dark:text-amber-200 border-amber-500/40"
                     : status === "incorrect"
                     ? "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/40"
                     : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
@@ -311,13 +369,19 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
           {status === "correct" && (
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
               <CheckCircle2 className="h-5 w-5" />
-              <span>Perfect! Query syntax and clause ordering is spot-on.</span>
+              <span>Correct! All blocks are in the right order.</span>
+            </div>
+          )}
+          {status === "partial" && (
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold text-sm">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <span>Partially correct ({matchedCount}/{exercise.solution.length} blocks in place). Keep going until all are correct!</span>
             </div>
           )}
           {status === "incorrect" && (
             <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold text-sm">
               <XCircle className="h-5 w-5" />
-              <span>Not quite right yet. Check clause hierarchy and required keywords.</span>
+              <span>Not quite right yet. Check clause order and required keywords.</span>
             </div>
           )}
         </div>
@@ -333,7 +397,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
           )}
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Validate Query Order
+          Check Order
         </Button>
       </div>
 
@@ -342,7 +406,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-xs sm:text-sm text-emerald-800 dark:text-emerald-200 space-y-1.5 animate-in fade-in">
           <div className="font-bold flex items-center gap-1.5">
             <Sparkles className="h-4 w-4 text-emerald-500" />
-            Teacher&apos;s Architectural Note:
+            Why this works:
           </div>
           <p className="leading-relaxed font-sans">{exercise.explanation}</p>
         </div>

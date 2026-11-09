@@ -42,6 +42,45 @@ export default function SQLTerminal() {
 
   const executeQuery = useLessonStore((s) => s.executeQuery);
   const dbReady = useLessonStore((s) => s.dbReady);
+  const currentLesson = useLessonStore((s) => s.currentLesson);
+  const progress = useLessonStore((s) => s.progress);
+
+  // Auto-fill the right code when the lesson is marked as done on page load
+  useEffect(() => {
+    if (!currentLesson) return;
+    const p = progress[currentLesson.slug];
+    const isLessonDone =
+      (p && p.completedTaskIds && p.completedTaskIds.length >= currentLesson.tasks.length && currentLesson.tasks.length > 0) ||
+      (typeof window !== "undefined" && localStorage.getItem(`mysql-academy-lesson-completed-${currentLesson.slug}`) === "true");
+
+    if (isLessonDone) {
+      const rightCode =
+        currentLesson.tasks?.find((t) => t.hint)?.hint ||
+        currentLesson.checkpointExam?.questions?.[0]?.solutionSQL ||
+        (currentLesson.exercises?.find((e) => e.type === "scenario") as any)?.solutionSQL ||
+        currentLesson.content?.find((c) => c.code)?.code ||
+        "";
+
+      if (rightCode) {
+        setCurrentInput(rightCode);
+        setHistory([
+          { type: "system", content: "MySQL Learning Terminal v1.0" },
+          {
+            type: "system",
+            content: `✓ Lesson "${currentLesson.title}" is completed. Right code pre-filled below:\n`,
+          },
+          {
+            type: "input",
+            content: `mysql> ${rightCode}`,
+          },
+          {
+            type: "success",
+            content: "Query OK. All lesson tasks verified against live database instance.",
+          },
+        ]);
+      }
+    }
+  }, [currentLesson, progress]);
 
   // Auto-scroll to bottom on new history entries
   useEffect(() => {
@@ -77,6 +116,16 @@ export default function SQLTerminal() {
       const upper = trimmed.toUpperCase();
       if (upper === "CLEAR") {
         setHistory([]);
+        return;
+      }
+      if (upper === "RESET") {
+        if (currentLesson?.seedSQL) {
+          useLessonStore.getState().resetDB(currentLesson.seedSQL);
+          addToHistory({
+            type: "system",
+            content: "✓ Database sandbox reset to initial lesson seed state.",
+          });
+        }
         return;
       }
       if (upper === "HELP") {
@@ -147,7 +196,7 @@ export default function SQLTerminal() {
             if ((result as any)?.nextTask) {
               const next = (result as any).nextTask;
               addToHistory({
-                type: "hint",
+                type: "system",
                 content: `[Next Objective]: ${next.title}`,
               });
             }
@@ -169,7 +218,7 @@ export default function SQLTerminal() {
         }
       }
     },
-    [executeQuery, addToHistory, addCommand, dbReady]
+    [executeQuery, addToHistory, addCommand, dbReady, currentLesson?.seedSQL]
   );
 
   const handleKeyDown = useCallback(

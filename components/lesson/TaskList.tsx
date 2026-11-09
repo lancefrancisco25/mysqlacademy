@@ -27,8 +27,12 @@ export function TaskList({ tasks, lessonSlug }: TaskListProps) {
   const verifyPendingTasks = useLessonStore((s) => s.verifyPendingTasks);
   const toggleTask = useLessonStore((s) => s.toggleTask);
 
+  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const isLessonDone = isLessonCompleted(lessonSlug);
   const lessonProgress = progress[lessonSlug];
-  const completedTaskIds = lessonProgress?.completedTaskIds || [];
+  const completedTaskIds = isLessonDone
+    ? tasks.map((t) => t.id)
+    : (lessonProgress?.completedTaskIds || []);
   const completedCount = tasks.filter((t) => completedTaskIds.includes(t.id)).length;
   const percent = Math.round((completedCount / Math.max(tasks.length, 1)) * 100);
 
@@ -41,7 +45,16 @@ export function TaskList({ tasks, lessonSlug }: TaskListProps) {
             <h3 className="text-xs font-mono font-bold text-foreground uppercase tracking-wider">
               Lab Objectives
             </h3>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
+            <span
+              className={cn(
+                "text-[11px] font-mono px-2 py-0.5 rounded-full font-semibold",
+                completedCount === tasks.length && tasks.length > 0
+                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  : completedCount > 0
+                  ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
               {completedCount}/{tasks.length}
             </span>
           </div>

@@ -13,9 +13,11 @@ import {
   Terminal,
   Code2,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   ShieldCheck,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +54,7 @@ export function LabTasksSidebar({
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
   const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [showSolutions, setShowSolutions] = useState(false);
 
   const toggleHint = (id: string) => {
     setOpenHints((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -229,15 +232,19 @@ export function LabTasksSidebar({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
               <Award className="h-4 w-4" />
-              <span>Final Objective: Target Result</span>
+              <span>Final Objective</span>
             </div>
             {completedCount === lesson.tasks.length && lesson.tasks.length > 0 ? (
               <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 text-[10px] font-mono">
                 ✓ Objective Achieved
               </Badge>
+            ) : completedCount > 0 ? (
+              <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40 text-[10px] font-mono">
+                Partially Complete ({completedCount}/{lesson.tasks.length})
+              </Badge>
             ) : (
               <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground border-border">
-                Pending ({completedCount}/{lesson.tasks.length})
+                Pending (0/{lesson.tasks.length})
               </Badge>
             )}
           </div>
@@ -257,9 +264,9 @@ export function LabTasksSidebar({
           {/* Expected Outcome Specifications */}
           <div className="p-3 rounded-lg bg-card/90 border border-border/80 text-xs font-mono space-y-2">
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-              <span>Expected Output / Verification Target</span>
-              <span className="text-emerald-600 dark:text-emerald-400">
-                {lesson.tasks.length} / {lesson.tasks.length} Requirements
+              <span>Target Result</span>
+              <span className={completedCount === lesson.tasks.length ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                {completedCount} / {lesson.tasks.length} Requirements
               </span>
             </div>
 
@@ -288,41 +295,52 @@ export function LabTasksSidebar({
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <div className="font-semibold text-emerald-700 dark:text-emerald-300">
-                    Target Criteria Fully Satisfied!
+                    All Tasks Completed!
                   </div>
                   <div className="text-[11px] text-emerald-800 dark:text-emerald-300/90 font-sans leading-relaxed">
-                    All {lesson.tasks.length} lab tasks have been executed and validated against the live database engine. The final objective is verified.
+                    All {lesson.tasks.length} lab tasks have been executed and validated. The final objective is achieved.
                   </div>
                 </div>
               </div>
 
-              {/* Right Answers: Canonical Verified SQL */}
+              {/* Right Answers: Collapsed until clicked */}
               <div className="p-3 rounded-lg bg-card/95 border border-emerald-500/30 space-y-2 text-xs">
-                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3" />
-                  <span>Canonical SQL Solutions (Right Answers)</span>
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" />
+                    <span>Right Answers</span>
+                  </div>
+                  <button
+                    onClick={() => setShowSolutions(!showSolutions)}
+                    className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>{showSolutions ? "Hide Right Answers" : "Show Right Answers"}</span>
+                    {showSolutions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
                 </div>
-                <div className="space-y-2 font-mono">
-                  {lesson.tasks.map((t, idx) => (
-                    <div key={t.id} className="space-y-1 bg-muted/40 p-2 rounded border border-border/60">
-                      <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
-                        <span>Task {idx + 1}: {t.title}</span>
-                        <span className="text-[10px] text-emerald-500 font-bold">✓ Mastered</span>
+                {showSolutions && (
+                  <div className="space-y-2 font-mono pt-1 animate-in fade-in">
+                    {lesson.tasks.map((t, idx) => (
+                      <div key={t.id} className="space-y-1 bg-muted/40 p-2 rounded border border-border/60">
+                        <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                          <span>Task {idx + 1}: {t.title}</span>
+                          <span className="text-[10px] text-emerald-500 font-bold">✓ Mastered</span>
+                        </div>
+                        {t.hint && (
+                          <pre className="p-1.5 rounded bg-[#0c0d11] text-emerald-400 text-[11px] overflow-x-auto border border-zinc-800">
+                            <code>{t.hint}</code>
+                          </pre>
+                        )}
                       </div>
-                      {t.hint && (
-                        <pre className="p-1.5 rounded bg-[#0c0d11] text-emerald-400 text-[11px] overflow-x-auto border border-zinc-800">
-                          <code>{t.hint}</code>
-                        </pre>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Prompt to Reset Terminal */}
               <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-2">
                 <div className="text-[11px] text-muted-foreground font-sans leading-relaxed">
-                  💡 <strong className="text-foreground">Done with this lab?</strong> Reset the interactive terminal sandbox to restore clean initial seed tables before practicing new queries:
+                  💡 <strong className="text-foreground">Done with this lab?</strong> Reset the database sandbox to restore clean initial tables before practicing new queries:
                 </div>
                 <Button
                   variant="outline"
@@ -332,7 +350,7 @@ export function LabTasksSidebar({
                   className="w-full h-8 text-xs font-mono font-bold gap-2 border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shadow-xs"
                 >
                   <RotateCcw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
-                  Reset Terminal Database Sandbox
+                  Reset Database
                 </Button>
               </div>
             </div>

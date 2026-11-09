@@ -44,6 +44,7 @@ export function CurriculumSidebar({
   onClose,
 }: CurriculumSidebarProps) {
   const progress = useLessonStore((s) => s.progress);
+  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
   const currentTrack = getTrackForLesson(currentSlug);
 
   // Keep track of which tracks are expanded (auto-expand current track by default)
@@ -74,10 +75,7 @@ export function CurriculumSidebar({
   };
 
   // Calculate overall stats
-  const completedLessonsCount = LESSONS.filter((l) => {
-    const p = progress[l.slug];
-    return p && p.completedTaskIds && p.completedTaskIds.length >= l.tasks.length && l.tasks.length > 0;
-  }).length;
+  const completedLessonsCount = LESSONS.filter((l) => isLessonCompleted(l.slug)).length;
 
   const totalLessons = LESSONS.length;
   const overallPercent = Math.round((completedLessonsCount / Math.max(totalLessons, 1)) * 100);
@@ -139,10 +137,7 @@ export function CurriculumSidebar({
             const isExpanded = !!expandedTracks[track.id];
 
             // Track completion count
-            const completedInTrack = lessons.filter((l) => {
-              const p = progress[l.slug];
-              return p && p.completedTaskIds && p.completedTaskIds.length >= l.tasks.length && l.tasks.length > 0;
-            }).length;
+            const completedInTrack = lessons.filter((l) => isLessonCompleted(l.slug)).length;
 
             const isTrackCompleted = completedInTrack === lessons.length && lessons.length > 0;
             const isCurrentTrack = track.id === currentTrack?.id;
@@ -197,9 +192,11 @@ export function CurriculumSidebar({
                   <div className="border-t border-border/40 divide-y divide-border/30 bg-muted/20 dark:bg-zinc-950/40">
                     {lessons.map((l, lIdx) => {
                       const isActive = l.slug === currentSlug;
+                      const isComplete = isLessonCompleted(l.slug);
                       const lessonProg = progress[l.slug];
-                      const tasksDone = lessonProg?.completedTaskIds?.length || 0;
-                      const isComplete = tasksDone >= l.tasks.length && l.tasks.length > 0;
+                      const tasksDone = isComplete
+                        ? l.tasks.length
+                        : (lessonProg?.completedTaskIds?.length || 0);
 
                       return (
                         <Link

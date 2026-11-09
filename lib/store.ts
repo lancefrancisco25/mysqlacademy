@@ -17,6 +17,7 @@ import {
   getTableInfo,
   getTableData,
 } from "./sql-engine/engine";
+import { getLessonBySlug } from "./lessons";
 import { validateTask } from "./agents/validator";
 import { getMentorHint } from "./agents/mentor";
 import { analyzeSQLSafety } from "./sql-engine/safety";
@@ -56,6 +57,9 @@ interface LessonState {
   toggleTask: (lessonSlug: string, taskId: string) => void;
   verifyPendingTasks: () => void;
   isTaskCompleted: (lessonSlug: string, taskId: string) => boolean;
+  markLessonComplete: (lessonSlug: string) => void;
+  resetLessonProgress: (lessonSlug: string) => void;
+  isLessonCompleted: (lessonSlug: string) => boolean;
   getLessonProgress: (lessonSlug: string) => number; // 0-100
   getOverallStats: () => { completedLessons: number; totalTasksDone: number; masteryScore: number };
 
@@ -373,6 +377,14 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     };
 
     saveProgress(updatedProgress);
+    const targetLesson = getLessonBySlug(lessonSlug);
+    if (targetLesson && updatedProgress[lessonSlug].completedTaskIds.length >= targetLesson.tasks.length && targetLesson.tasks.length > 0) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+        } catch {}
+      }
+    }
     set({ progress: updatedProgress });
 
     // Cloud push if logged in
@@ -412,6 +424,14 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     };
 
     saveProgress(updatedProgress);
+    const targetLesson = getLessonBySlug(lessonSlug);
+    if (targetLesson && updatedProgress[lessonSlug].completedTaskIds.length >= targetLesson.tasks.length && targetLesson.tasks.length > 0) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+        } catch {}
+      }
+    }
     set({ progress: updatedProgress });
 
     if (!isDone) {
@@ -454,6 +474,113 @@ export const useLessonStore = create<LessonState>((set, get) => ({
   isTaskCompleted: (lessonSlug: string, taskId: string) => {
     const p = get().progress[lessonSlug];
     return p ? p.completedTaskIds.includes(taskId) : false;
+  },
+
+  isLessonCompleted: (lessonSlug: string) => {
+    if (typeof window !== "undefined") {
+      if (localStorage.getItem(`mysql-academy-lesson-completed-${lessonSlug}`) === "true") {
+        return true;
+      }
+    }
+    const lesson = getLessonBySlug(lessonSlug);
+    const p = get().progress[lessonSlug];
+    if (!lesson || !p || !p.completedTaskIds || !lesson.tasks || lesson.tasks.length === 0) {
+      return false;
+    }
+    return p.completedTaskIds.length >= lesson.tasks.length;
+  },
+
+  markLessonComplete: (lessonSlug: string) => {
+    const lesson = getLessonBySlug(lessonSlug);
+    if (!lesson) return;
+    const allTaskIds = lesson.tasks.map((t) => t.id);
+    const currentProgress = get().progress;
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        lessonSlug,
+        completedTaskIds: allTaskIds,
+        lastAccessed: Date.now(),
+      },
+    };
+    saveProgress(updatedProgress);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+        // Pre-fill scenario if lesson has scenario
+        lesson.exercises?.forEach((ex) => {
+          if (ex.type === "scenario") {
+            localStorage.setItem(
+              `mysql-academy-scenario-${ex.id}`,
+              JSON.stringify({
+                completed: true,
+                completedRequirements: ex.requirements.map((r) => r.id),
+                code: ex.solutionSQL,
+                completedAt: Date.now(),
+              })
+            );
+          } else if (ex.type === "drag-block") {
+            localStorage.setItem(
+              `mysql-academy-dragblock-${ex.id}`,
+              JSON.stringify({ completed: true })
+            );
+          }
+        });
+        // Pre-fill checkpoint questions if exists
+        if (lesson.checkpointExam) {
+          const codes: Record<string, string> = {};
+          lesson.checkpointExam.questions.forEach((q) => {
+            codes[q.id] = q.solutionSQL || "";
+          });
+          localStorage.setItem(
+            `mysql-academy-checkpoint-${lesson.checkpointExam.id}`,
+            JSON.stringify({
+              passedQuestionIds: lesson.checkpointExam.questions.map((q) => q.id),
+              codes,
+              completed: true,
+            })
+          );
+        }
+        // Pre-fill intuition check
+        if (lesson.intuitionCheck) {
+          localStorage.setItem(
+            `mysql-academy-intuition-${lessonSlug}`,
+            JSON.stringify({ selectedOption: lesson.intuitionCheck.correctIndex })
+          );
+        }
+      } catch {}
+    }
+    set({ progress: updatedProgress });
+    toast.success("Lesson marked complete! All items pre-filled.");
+  },
+
+  resetLessonProgress: (lessonSlug: string) => {
+    const currentProgress = get().progress;
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        lessonSlug,
+        completedTaskIds: [],
+        lastAccessed: Date.now(),
+      },
+    };
+    saveProgress(updatedProgress);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+        localStorage.removeItem(`mysql-academy-intuition-${lessonSlug}`);
+        const lesson = getLessonBySlug(lessonSlug);
+        lesson?.exercises?.forEach((ex) => {
+          localStorage.removeItem(`mysql-academy-scenario-${ex.id}`);
+          localStorage.removeItem(`mysql-academy-dragblock-${ex.id}`);
+        });
+        if (lesson?.checkpointExam) {
+          localStorage.removeItem(`mysql-academy-checkpoint-${lesson.checkpointExam.id}`);
+        }
+      } catch {}
+    }
+    set({ progress: updatedProgress });
+    toast.info("Lesson reset to initial state.");
   },
 
   getLessonProgress: (lessonSlug: string) => {

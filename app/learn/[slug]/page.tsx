@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  CheckCircle2,
   Database,
   Terminal as TerminalIcon,
   RotateCcw,
@@ -52,6 +53,21 @@ export default function LessonWorkspacePage() {
   const resetDB = useLessonStore((s) => s.resetDB);
   const setCurrentLesson = useLessonStore((s) => s.setCurrentLesson);
   const dbReady = useLessonStore((s) => s.dbReady);
+  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const markLessonComplete = useLessonStore((s) => s.markLessonComplete);
+  const resetLessonProgress = useLessonStore((s) => s.resetLessonProgress);
+  const progress = useLessonStore((s) => s.progress);
+
+  const isCompleted = lesson ? isLessonCompleted(lesson.slug) : false;
+
+  const handleToggleComplete = () => {
+    if (!lesson) return;
+    if (isCompleted) {
+      resetLessonProgress(lesson.slug);
+    } else {
+      markLessonComplete(lesson.slug);
+    }
+  };
 
   // Synchronously ensure active lesson is set on store
   if (lesson && useLessonStore.getState().currentLesson?.slug !== lesson.slug) {
@@ -293,6 +309,27 @@ export default function LessonWorkspacePage() {
               <span>Interactive Lab</span>
             </button>
           </div>
+
+          {/* Mark as Done / Completed Toggle Button */}
+          <Button
+            variant={isCompleted ? "default" : "outline"}
+            size="sm"
+            onClick={handleToggleComplete}
+            className={cn(
+              "h-7 px-2.5 text-xs gap-1.5 font-medium shrink-0 transition-all",
+              isCompleted
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white border-transparent shadow-xs"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-emerald-500/50"
+            )}
+            title={
+              isCompleted
+                ? "Lesson marked as done. Click to reset this lesson's progress."
+                : "Click to mark this lesson as completed (fills all exercises & terminal)"
+            }
+          >
+            <CheckCircle2 className={cn("h-3.5 w-3.5", isCompleted ? "text-white" : "text-emerald-500")} />
+            <span>{isCompleted ? "Completed" : "Mark as Done"}</span>
+          </Button>
 
           {/* Reset DB Button in Lab Mode */}
           {viewMode === "lab" && (

@@ -173,6 +173,12 @@ function validateRowCountGte(rule: ValidationRule): ValidationResult {
   if (actual >= rule.expectedCount) {
     return { passed: true };
   }
+  if (actual > 0) {
+    return {
+      passed: false,
+      reason: `Partially correct: '${rule.table}' has ${actual} of ${rule.expectedCount} required rows.`,
+    };
+  }
   return {
     passed: false,
     reason: `Expected at least ${rule.expectedCount} rows in '${rule.table}', found ${actual}.`,
@@ -246,14 +252,28 @@ function compareValues(
   }
 
   // General row-by-row matrix comparison
+  let matchedRows = 0;
   for (let i = 0; i < expected.length; i++) {
+    let rowMatch = true;
     for (let j = 0; j < expected[i].length; j++) {
       if (!valuesMatch(actual[i]?.[j], expected[i]?.[j])) {
+        rowMatch = false;
+        break;
+      }
+    }
+    if (rowMatch) {
+      matchedRows++;
+    } else {
+      if (matchedRows > 0) {
         return {
           passed: false,
-          reason: description || `Row ${i + 1} does not match expected values.`,
+          reason: `Partially correct (${matchedRows}/${expected.length} rows match). Row ${i + 1} does not match expected output.`,
         };
       }
+      return {
+        passed: false,
+        reason: description || `Row ${i + 1} does not match expected values.`,
+      };
     }
   }
 

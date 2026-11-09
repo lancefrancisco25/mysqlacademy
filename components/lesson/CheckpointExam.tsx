@@ -6,6 +6,7 @@ import {
   Award,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   Play,
   RotateCcw,
   Sparkles,
@@ -41,6 +42,8 @@ export function CheckpointExam({
   const executeQuery = useLessonStore((s) => s.executeQuery);
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
+  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   const [isResettingDB, setIsResettingDB] = useState(false);
   const [resetNotice, setResetNotice] = useState<string | null>(null);
@@ -58,12 +61,24 @@ export function CheckpointExam({
       }
     >
   >(() => {
+    let saved: any = null;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-checkpoint-${exam.id}`);
+        if (raw) saved = JSON.parse(raw);
+      } catch {}
+    }
+    const curLesson = useLessonStore.getState().currentLesson;
+    const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
+
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
+      const isPassed = isDone || (saved?.passedQuestionIds?.includes(q.id) || false);
+      const code = isPassed ? (saved?.codes?.[q.id] || q.solutionSQL || "") : (saved?.codes?.[q.id] || "");
       initial[q.id] = {
-        code: "",
-        passed: false,
-        feedback: undefined,
+        code: code,
+        passed: isPassed,
+        feedback: isPassed ? "✓ Checkpoint Passed! Output meets required specification." : undefined,
         showHint: false,
         showSolution: false,
       };
@@ -82,17 +97,18 @@ export function CheckpointExam({
     }
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = saved?.passedQuestionIds?.includes(q.id) || false;
+      const isPassed = isLessonDone || (saved?.passedQuestionIds?.includes(q.id) || false);
+      const code = isPassed ? (saved?.codes?.[q.id] || q.solutionSQL || "") : (saved?.codes?.[q.id] || "");
       initial[q.id] = {
-        code: saved?.codes?.[q.id] || "",
+        code: code,
         passed: isPassed,
         feedback: isPassed ? "✓ Checkpoint Passed! Output meets required specification." : undefined,
         showHint: false,
-        showSolution: isPassed, // Auto-reveal reference solution if passed
+        showSolution: false, // Never auto-open reference solution or hints unless user explicitly clicks
       };
     });
     setQuestionStates(initial);
-  }, [exam.id, exam.questions]);
+  }, [exam.id, exam.questions, isLessonDone]);
 
   const handleCodeChange = (id: string, val: string) => {
     setQuestionStates((prev) => ({
@@ -150,7 +166,8 @@ export function CheckpointExam({
               ...prev[q.id],
               passed: true,
               feedback: "✓ Checkpoint Passed! Output meets required specification.",
-              showSolution: true,
+              showHint: false,
+              showSolution: false, // Do not open hint or solution automatically unless user specifically clicks it
             },
           };
           if (typeof window !== "undefined") {
@@ -243,23 +260,27 @@ export function CheckpointExam({
 
         {/* Score indicator */}
         <div className="flex items-center gap-2 bg-muted/60 px-3.5 py-2 rounded-xl border border-border/80 self-start sm:self-center font-mono">
-          <span className="text-xs text-muted-foreground">Checkpoint Score:</span>
+          <span className="text-xs text-muted-foreground">Score:</span>
           <span
             className={cn(
               "text-sm font-bold",
-              isAllPassed ? "text-emerald-500" : "text-foreground"
+              isAllPassed
+                ? "text-emerald-500"
+                : passedCount > 0
+                ? "text-amber-500"
+                : "text-foreground"
             )}
           >
-            {passedCount}/{exam.questions.length} Mastered
+            {passedCount}/{exam.questions.length} Passed
           </span>
         </div>
       </div>
 
-      {/* Mission Narrative Briefing */}
+      {/* Scenario Briefing */}
       <div className="rounded-xl border border-border/80 bg-muted/30 p-4 sm:p-5 space-y-2">
         <div className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5" />
-          Mission Context Briefing
+          Scenario Context
         </div>
         <p className="text-sm sm:text-base text-foreground leading-relaxed whitespace-pre-line font-sans">
           {exam.scenarioContext}
@@ -283,6 +304,8 @@ export function CheckpointExam({
                 "rounded-xl border p-5 space-y-4 transition-all",
                 state.passed
                   ? "border-emerald-500/50 bg-emerald-500/5"
+                  : state.feedback && (state.feedback.includes("Partial") || state.feedback.includes("partially"))
+                  ? "border-amber-500/40 bg-amber-500/5"
                   : state.feedback && !state.passed
                   ? "border-red-500/40 bg-red-500/5"
                   : "border-border bg-card"
@@ -307,7 +330,7 @@ export function CheckpointExam({
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-muted-foreground font-mono text-[11px]">
-                      Pending Verification
+                      Pending
                     </Badge>
                   )}
                 </div>
@@ -327,7 +350,7 @@ export function CheckpointExam({
                       className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                     >
                       <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                      <span>{state.showHint ? "Hide Exam Hint" : "Need a hint?"}</span>
+                      <span>{state.showHint ? "Hide Hint" : "Need a hint?"}</span>
                     </button>
                     {state.showHint && (
                       <div className="mt-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200">
@@ -344,12 +367,12 @@ export function CheckpointExam({
                       className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                     >
                       <Sparkles className="h-3.5 w-3.5 text-sky-500" />
-                      <span>{state.showSolution ? "Hide Solution" : "Reveal Reference Solution"}</span>
+                      <span>{state.showSolution ? "Hide Right Answer" : "Show Right Answer"}</span>
                     </button>
                     {state.showSolution && (
                       <div className="mt-2 p-3 rounded-lg border border-sky-500/30 bg-sky-500/10 text-xs space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sky-900 dark:text-sky-200">Reference Solution:</span>
+                          <span className="font-semibold text-sky-900 dark:text-sky-200">Right Answer:</span>
                           <button
                             onClick={() => handleCodeChange(q.id, q.solutionSQL || "")}
                             className="text-[11px] text-sky-600 dark:text-sky-400 hover:underline"
@@ -372,7 +395,7 @@ export function CheckpointExam({
                   <div className="flex items-center justify-between px-3 py-1.5 bg-[#14151a] border-b border-zinc-800 text-[11px] font-mono text-zinc-400">
                     <span className="flex items-center gap-1.5">
                       <Code2 className="h-3 w-3 text-emerald-400" />
-                      Candidate Solution SQL
+                      Your SQL Query
                     </span>
                     <button
                       onClick={() => handleCodeChange(q.id, "")}
@@ -400,8 +423,19 @@ export function CheckpointExam({
                       {state.feedback}
                     </span>
                   ) : state.feedback ? (
-                    <span className="text-red-600 dark:text-red-400 font-semibold flex items-center gap-1.5">
-                      <XCircle className="h-4 w-4" />
+                    <span
+                      className={cn(
+                        "font-semibold flex items-center gap-1.5",
+                        state.feedback.includes("Partial") || state.feedback.includes("partially")
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      {state.feedback.includes("Partial") || state.feedback.includes("partially") ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
                       {state.feedback}
                     </span>
                   ) : (
