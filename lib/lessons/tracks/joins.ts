@@ -105,25 +105,35 @@ export const joinsLessons: Lesson[] = [
         title: "E-Commerce Customer Order Item Invoicing",
         companyOrContext: "Global Logistics Hub",
         problemStatement:
-          "You are writing the billing invoice generator for an e-commerce platform. You need to join the `orders` table with the `customers` table to produce a verified customer order list.\n\nTables:\n• `customers (id, full_name, email)`\n• `orders (id, customer_id, total_amount, order_date)`\n\nWrite a query that displays:\n1. `c.full_name`\n2. `c.email`\n3. `o.total_amount`\nJoin on `c.id = o.customer_id`, and filter where `o.total_amount >= 100`.",
+          "You are writing the billing invoice generator for an e-commerce platform. You need to combine customer profiles with their order history to produce an itemized customer invoice statement.\n\nInvoicing requirements:\n1. Include the customer's full name, email address, and order total amount.\n2. Match records by correlating the customer's identifier with their corresponding order records.\n3. Restrict the invoice report to premium orders of $100 or greater.",
+        previewTable: {
+          tableName: "customers / orders",
+          description: "Verified Customer Accounts & Recorded Orders",
+          columns: ["full_name", "email", "total_amount", "order_date"],
+          rows: [
+            ["John Doe", "john@example.com", 150.0, "2025-01-15"],
+            ["Sarah Connor", "sarah@resistance.org", 299.99, "2025-01-17"],
+            ["Bruce Wayne", "bruce@waynecorp.com", 85.5, "2025-01-18"],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS customers (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  full_name VARCHAR(100) NOT NULL,\n  email VARCHAR(150) NOT NULL\n);\nCREATE TABLE IF NOT EXISTS orders (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  customer_id INTEGER,\n  total_amount REAL,\n  order_date DATE\n);\nINSERT OR IGNORE INTO customers (id, full_name, email) VALUES\n  (1, 'John Doe', 'john@example.com'),\n  (2, 'Sarah Connor', 'sarah@resistance.org'),\n  (3, 'Bruce Wayne', 'bruce@waynecorp.com');\nINSERT OR IGNORE INTO orders (id, customer_id, total_amount, order_date) VALUES\n  (1, 1, 150.00, '2025-01-15'),\n  (2, 1, 45.00, '2025-01-16'),\n  (3, 2, 299.99, '2025-01-17'),\n  (4, 3, 85.50, '2025-01-18');",
         requirements: [
           {
             id: "req-1",
-            text: "Select c.full_name, c.email, o.total_amount",
+            text: "Project the customer's full name, contact email, and order total amount",
             hint: "SELECT c.full_name, c.email, o.total_amount",
             syntaxPattern: /select[\s\S]*(c\.)?full_name[\s\S]*(c\.)?email[\s\S]*(o\.)?total_amount/i,
           },
           {
             id: "req-2",
-            text: "Join customers c with orders o on c.id = o.customer_id",
+            text: "Join the customers and orders tables on their matching customer ID foreign key",
             hint: "FROM customers c INNER JOIN orders o ON c.id = o.customer_id",
             syntaxPattern: /join\s+orders(\s+o)?\s+on\s+((c\.)?id\s*=\s*(o\.)?customer_id|(o\.)?customer_id\s*=\s*(c\.)?id)/i,
           },
           {
             id: "req-3",
-            text: "Filter WHERE o.total_amount >= 100",
+            text: "Filter for high-value orders amounting to $100 or higher",
             hint: "WHERE o.total_amount >= 100",
             syntaxPattern: /where\s+(o\.)?total_amount\s*>=\s*100/i,
           },
@@ -312,25 +322,36 @@ export const joinsLessons: Lesson[] = [
         title: "Healthcare Clinic: Unassigned Patients Audit",
         companyOrContext: "Valley Care Outpatient Clinic",
         problemStatement:
-          "You are conducting a patient safety audit at Valley Care Clinic. Every patient should ideally be assigned to a primary care doctor.\n\nTables:\n• `patients (id, name, age)`\n• `doctor_assignments (id, patient_id, doctor_name)`\n\nWrite a query that identifies all patients who currently have NO primary care doctor assigned (orphaned patients needing immediate intake triage).",
+          "You are conducting a patient safety audit at Valley Care Clinic. Every patient should ideally be assigned to a primary care doctor.\n\nAudit specifications:\n1. Identify every patient who has not yet been linked to an intake primary care physician.\n2. Preserve all patient records in the base set and match assignment records where they exist.\n3. Isolate the unassigned patients by looking for missing assignment keys.",
+        previewTable: {
+          tableName: "patients & doctor_assignments",
+          description: "Clinic Patient Roster & Current Doctor Assignments",
+          columns: ["patient_id", "patient_name", "assigned_doctor"],
+          rows: [
+            [1, "Marcus Brody", "Dr. House"],
+            [2, "Elena Gilbert", null],
+            [3, "Walter White", "Dr. Strange"],
+            [4, "Jesse Pinkman", null],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS patients (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  age INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS doctor_assignments (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  patient_id INTEGER,\n  doctor_name VARCHAR(100)\n);\nINSERT OR IGNORE INTO patients (id, name, age) VALUES\n  (1, 'Marcus Brody', 45),\n  (2, 'Elena Gilbert', 29),\n  (3, 'Walter White', 52),\n  (4, 'Jesse Pinkman', 26);\nINSERT OR IGNORE INTO doctor_assignments (id, patient_id, doctor_name) VALUES\n  (1, 1, 'Dr. House'),\n  (2, 3, 'Dr. Strange');",
         requirements: [
           {
             id: "req-1",
-            text: "Select patient id and name",
+            text: "Project the patient's ID and name",
             hint: "SELECT pt.id, pt.name",
             syntaxPattern: /select[\s\S]*(pt\.)?id[\s\S]*(pt\.)?name/i,
           },
           {
             id: "req-2",
-            text: "Perform LEFT JOIN on pt.id = da.patient_id",
+            text: "Connect patients to doctor assignments using an outer join on matching patient ID",
             hint: "FROM patients pt LEFT JOIN doctor_assignments da ON pt.id = da.patient_id",
             syntaxPattern: /left\s+join\s+doctor_assignments(\s+da)?\s+on\s+((pt\.)?id\s*=\s*(da\.)?patient_id|(da\.)?patient_id\s*=\s*(pt\.)?id)/i,
           },
           {
             id: "req-3",
-            text: "Filter WHERE da.id IS NULL",
+            text: "Isolate unassigned patients by filtering for absent assignment records",
             hint: "WHERE da.id IS NULL",
             syntaxPattern: /where\s+(da\.)?(id|patient_id)\s+is\s+null/i,
           },
@@ -489,19 +510,31 @@ export const joinsLessons: Lesson[] = [
         title: "VIP Loyalty Program: High-Spender Identification",
         companyOrContext: "Neptune Luxury Goods",
         problemStatement:
-          "You are designing the VIP club invitation query for Neptune Luxury Goods. Management wants to invite customers whose total lifetime spending is higher than the global customer average.\n\nTable: `customers (id, name, lifetime_spend)`.\nWrite a query that projects `name` and `lifetime_spend` for all customers whose `lifetime_spend` exceeds the average `lifetime_spend` of all customers.",
+          "You are designing the VIP club invitation query for Neptune Luxury Goods. Management wants to invite top customers whose total lifetime spending exceeds the overall benchmark average across all patrons.\n\nVIP selection directives:\n1. Project customer names alongside their recorded lifetime expenditure.\n2. Dynamically compute the global average lifetime spend to serve as the qualification threshold.\n3. Return only patrons whose total spend strictly exceeds that calculated average benchmark.",
+        previewTable: {
+          tableName: "customers",
+          description: "Customer Lifetime Value Ledger",
+          columns: ["id", "name", "lifetime_spend"],
+          rows: [
+            [1, "Alexander Vance", 15400.0],
+            [2, "Beatrix Kiddo", 4200.0],
+            [3, "Charles Xavier", 28900.0],
+            [4, "Dana Scully", 6100.0],
+            [5, "Edward Nygma", 8300.0],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS customers (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  lifetime_spend REAL NOT NULL\n);\nINSERT OR IGNORE INTO customers (id, name, lifetime_spend) VALUES\n  (1, 'Alexander Vance', 15400.00),\n  (2, 'Beatrix Kiddo', 4200.00),\n  (3, 'Charles Xavier', 28900.00),\n  (4, 'Dana Scully', 6100.00),\n  (5, 'Edward Nygma', 8300.00);",
         requirements: [
           {
             id: "req-1",
-            text: "Select name and lifetime_spend from customers",
+            text: "Project the customer name and lifetime expenditure columns",
             hint: "SELECT name, lifetime_spend FROM customers",
             syntaxPattern: /select[\s\S]*name[\s\S]*lifetime_spend\s+from\s+customers/i,
           },
           {
             id: "req-2",
-            text: "Filter WHERE lifetime_spend > (SELECT AVG(lifetime_spend) FROM customers)",
+            text: "Filter for spend exceeding the dynamic average calculated via a nested subquery",
             hint: "WHERE lifetime_spend > (SELECT AVG(lifetime_spend) FROM customers)",
             syntaxPattern: /where\s+lifetime_spend\s*>\s*\(\s*select\s+avg\s*\(\s*lifetime_spend\s*\)\s+from\s+customers\s*\)/i,
           },

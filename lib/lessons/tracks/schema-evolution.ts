@@ -106,27 +106,36 @@ export const schemaEvolutionLessons: Lesson[] = [
         title: "FinTech Compliance: Account KYC Verification Column",
         companyOrContext: "ApexPay Regulatory Compliance",
         problemStatement:
-          "Due to new banking regulations, all accounts in the `accounts` table must track KYC (Know Your Customer) compliance status.\n\nWrite an ALTER TABLE statement to add a new column named `kyc_status` (VARCHAR 30) with a DEFAULT value of 'pending' and NOT NULL to the `accounts` table.",
+          "Due to updated financial regulatory mandates, all banking ledgers at ApexPay must track customer identity verification (KYC - Know Your Customer).\n\nMigration directives:\n1. Evolve the existing `accounts` schema without dropping active account records.\n2. Add a new verification status attribute named `kyc_status` supporting text codes up to 30 characters.\n3. Prevent null values by establishing a default initial state of 'pending' for all existing and newly created accounts.",
+        previewTable: {
+          tableName: "accounts",
+          description: "Active Banking Accounts Ledger",
+          columns: ["id", "account_number", "balance", "kyc_status (target)"],
+          rows: [
+            [1, "ACC-1001", 5420.5, "pending"],
+            [2, "ACC-1002", 12300.0, "pending"],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS accounts (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  account_number VARCHAR(30) NOT NULL UNIQUE,\n  balance REAL NOT NULL DEFAULT 0.0\n);\nINSERT OR IGNORE INTO accounts (id, account_number, balance) VALUES\n  (1, 'ACC-1001', 5420.50),\n  (2, 'ACC-1002', 12300.00);",
         requirements: [
           {
             id: "req-1",
-            text: "Target table accounts with ALTER TABLE",
+            text: "Alter the structure of the existing `accounts` table",
             hint: "ALTER TABLE accounts",
             validationRule: { type: "table_exists", table: "accounts" },
             syntaxPattern: /alter\s+table\s+accounts/i,
           },
           {
             id: "req-2",
-            text: "Add column kyc_status VARCHAR(30)",
+            text: "Introduce the `kyc_status` column capable of storing up to 30 characters",
             hint: "ADD COLUMN kyc_status VARCHAR(30)",
             validationRule: { type: "column_exists", table: "accounts", column: "kyc_status" },
             syntaxPattern: /add\s+(column\s+)?kyc_status\s+varchar(\s*\(\s*30\s*\))?/i,
           },
           {
             id: "req-3",
-            text: "Include NOT NULL DEFAULT 'pending'",
+            text: "Enforce non-null values with a default initial status of 'pending'",
             hint: "NOT NULL DEFAULT 'pending'",
             syntaxPattern: /(not\s+null\s+default\s+['"]pending['"]|default\s+['"]pending['"]\s+not\s+null)/i,
           },
@@ -287,25 +296,35 @@ export const schemaEvolutionLessons: Lesson[] = [
         title: "FinTech Crypto Wallet: Account Balances & Address Rules",
         companyOrContext: "BlockLedger Vaults",
         problemStatement:
-          "You are creating the wallet ledger table for BlockLedger. You need to create a table named `wallets` with strict domain constraints.\n\nRules:\n1. `id`: Integer primary key with auto-increment\n2. `wallet_address`: VARCHAR(64) strictly UNIQUE and NOT NULL\n3. `balance`: REAL with a CHECK constraint guaranteeing balance >= 0\n4. `created_date`: DATE",
+          "You are designing the decentralized wallet ledger for BlockLedger. You need to create a table named `wallets` configured with strict domain integrity constraints.\n\nVault security rules:\n1. Each wallet record is identified by a sequential integer primary key.\n2. The blockchain wallet address up to 64 characters must be strictly unique and can never be null.\n3. The account balance must be guarded with a check constraint ensuring balances can never drop below zero.\n4. Log the registration calendar date using a standard date field.",
+        previewTable: {
+          tableName: "wallets",
+          description: "BlockLedger Vault Account Addresses",
+          columns: ["id", "wallet_address", "balance", "created_date"],
+          rows: [
+            [1, "0x71C...8976F", 4.25, "2025-01-01"],
+            [2, "0x3F2...110BA", 128.5, "2025-01-03"],
+            [3, "0x98A...442CD", 0.0, "2025-01-05"],
+          ],
+        },
         requirements: [
           {
             id: "req-1",
-            text: "Create table wallets",
+            text: "Create the crypto asset registry table named `wallets`",
             hint: "CREATE TABLE wallets (...)",
             validationRule: { type: "table_exists", table: "wallets" },
             syntaxPattern: /create\s+table\s+(if\s+not\s+exists\s+)?wallets/i,
           },
           {
             id: "req-2",
-            text: "Column wallet_address VARCHAR(64) UNIQUE NOT NULL",
+            text: "Configure `wallet_address` as a unique, non-null text attribute up to 64 characters",
             hint: "wallet_address VARCHAR(64) UNIQUE NOT NULL",
             validationRule: { type: "column_exists", table: "wallets", column: "wallet_address" },
             syntaxPattern: /wallet_address\s+varchar(\s*\(\s*64\s*\))?[\s\S]*(unique\s+not\s+null|not\s+null\s+unique)/i,
           },
           {
             id: "req-3",
-            text: "Column balance REAL CHECK(balance >= 0)",
+            text: "Enforce a domain check constraint ensuring `balance` remains non-negative (>= 0)",
             hint: "balance REAL CHECK(balance >= 0)",
             validationRule: { type: "column_exists", table: "wallets", column: "balance" },
             syntaxPattern: /balance\s+real[\s\S]*check\s*\(\s*balance\s*>=\s*0\s*\)/i,

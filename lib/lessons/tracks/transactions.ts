@@ -111,31 +111,41 @@ export const transactionsLessons: Lesson[] = [
         title: "Hotel Reservation & Room Inventory Booking",
         companyOrContext: "Grand Plaza Hotels & Resorts",
         problemStatement:
-          "You are writing the booking engine for Grand Plaza Hotels. When a guest books a suite, you must perform two operations atomically:\n1. Insert a booking record into `bookings (guest_name, room_type, nights)` for 'David Miller', 'Deluxe Suite', 3 nights.\n2. Deduct 1 from `available_rooms` in `room_inventory` WHERE `room_type = 'Deluxe Suite'`.\nWrap both operations in an atomic transaction so an overbooking never records a reservation without deducting a room.",
+          "You are designing the reservation engine for Grand Plaza Hotels & Resorts. When a guest reserves a hotel suite, the system must perform two critical database operations atomically:\n1. Register a confirmed reservation for guest 'David Miller' booking the 'Deluxe Suite' for 3 nights.\n2. Deduct 1 unit from the available room inventory for the 'Deluxe Suite'.\nWrap both operations in an atomic transaction boundary to eliminate race conditions and prevent overbooking.",
+        previewTable: {
+          tableName: "room_inventory",
+          description: "Grand Plaza Live Room Availability Ledger",
+          columns: ["id", "room_type", "available_rooms"],
+          rows: [
+            [1, "Deluxe Suite", 8],
+            [2, "Standard Queen", 15],
+            [3, "Executive Penthouse", 2],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS bookings (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  guest_name VARCHAR(100) NOT NULL,\n  room_type VARCHAR(50) NOT NULL,\n  nights INTEGER NOT NULL\n);\nCREATE TABLE IF NOT EXISTS room_inventory (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  room_type VARCHAR(50) UNIQUE NOT NULL,\n  available_rooms INTEGER NOT NULL\n);\nINSERT OR IGNORE INTO room_inventory (id, room_type, available_rooms) VALUES\n  (1, 'Deluxe Suite', 8),\n  (2, 'Standard Queen', 15),\n  (3, 'Executive Penthouse', 2);",
         requirements: [
           {
             id: "req-1",
-            text: "Start with START TRANSACTION;",
+            text: "Open an atomic transaction boundary",
             hint: "START TRANSACTION;",
             syntaxPattern: /(start\s+transaction|begin(\s+transaction)?)/i,
           },
           {
             id: "req-2",
-            text: "Insert booking for David Miller",
+            text: "Record the reservation for David Miller in the bookings table",
             hint: "INSERT INTO bookings (guest_name, room_type, nights) VALUES ('David Miller', 'Deluxe Suite', 3);",
             syntaxPattern: /insert\s+into\s+bookings[\s\S]*David Miller[\s\S]*Deluxe Suite[\s\S]*3/i,
           },
           {
             id: "req-3",
-            text: "Update room inventory",
+            text: "Decrement the available inventory count for the Deluxe Suite by 1",
             hint: "UPDATE room_inventory SET available_rooms = available_rooms - 1 WHERE room_type = 'Deluxe Suite';",
             syntaxPattern: /update\s+room_inventory\s+set\s+available_rooms\s*=\s*available_rooms\s*-\s*1[\s\S]*Deluxe Suite/i,
           },
           {
             id: "req-4",
-            text: "Commit with COMMIT;",
+            text: "Commit the atomic batch to persist all changes permanently",
             hint: "COMMIT;",
             syntaxPattern: /commit/i,
           },
@@ -293,19 +303,29 @@ export const transactionsLessons: Lesson[] = [
         title: "Video Streaming Platform: Stream Event Latency Optimization",
         companyOrContext: "StreamFlix Global CDN",
         problemStatement:
-          "StreamFlix logs 50 million video playback heartbeat events per day in the `playback_events` table.\n\nSlow query alert:\n`SELECT * FROM playback_events WHERE user_id = 9481 AND device_type = 'smart_tv';`\nThis query is performing a full table scan and taking 4.2 seconds. Write a DDL statement creating a composite index named `idx_playback_user_device` covering `user_id` and `device_type` on the `playback_events` table.",
+          "StreamFlix logs 50 million video playback heartbeat events per day in the `playback_events` table.\n\nDatabase Performance Alert:\nThe telemetry monitoring query filtering on user identity and device type is triggering full table scans, spiking CPU latency to 4.2 seconds. Create a high-performance composite index named `idx_playback_user_device` covering both filter attributes to enable immediate B-Tree index seek lookups.",
+        previewTable: {
+          tableName: "playback_events",
+          description: "StreamFlix CDN Video Playback Heartbeat Telemetry",
+          columns: ["id", "user_id", "device_type", "event_time"],
+          rows: [
+            [1, 9481, "smart_tv", "2025-01-10 14:22:00"],
+            [2, 9481, "mobile", "2025-01-10 15:10:00"],
+            [3, 1024, "desktop", "2025-01-10 16:05:00"],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS playback_events (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  user_id INTEGER NOT NULL,\n  device_type VARCHAR(50) NOT NULL,\n  event_time DATETIME\n);\nINSERT OR IGNORE INTO playback_events (id, user_id, device_type, event_time) VALUES\n  (1, 9481, 'smart_tv', '2025-01-10 14:22:00'),\n  (2, 9481, 'mobile', '2025-01-10 15:10:00'),\n  (3, 1024, 'desktop', '2025-01-10 16:05:00');",
         requirements: [
           {
             id: "req-1",
-            text: "Create index idx_playback_user_device",
+            text: "Define the composite performance index named `idx_playback_user_device`",
             hint: "CREATE INDEX idx_playback_user_device",
             syntaxPattern: /create\s+index\s+(if\s+not\s+exists\s+)?idx_playback_user_device/i,
           },
           {
             id: "req-2",
-            text: "Target table playback_events covering user_id, device_type",
+            text: "Bind the index to the `playback_events` table indexing both user ID and device type",
             hint: "ON playback_events(user_id, device_type);",
             syntaxPattern: /on\s+playback_events\s*\(\s*user_id\s*,\s*device_type\s*\)/i,
           },

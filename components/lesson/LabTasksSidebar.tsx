@@ -219,80 +219,93 @@ export function LabTasksSidebar({
           </div>
         </div>
 
-        {/* Section 2: Final Objective Task (Checkpoint Mission) */}
-        {lesson.checkpointExam && (
-          <div className="rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-4 space-y-3 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                <Award className="h-4 w-4" />
-                <span>Final Objective Task</span>
-              </div>
-              <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                Checkpoint Mission
+        {/* Section 2: Final Objective (Expected Result) */}
+        <div className={cn(
+          "rounded-xl border-2 p-4 space-y-3 shadow-xs transition-all",
+          completedCount === lesson.tasks.length && lesson.tasks.length > 0
+            ? "border-emerald-500/50 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent"
+            : "border-border bg-gradient-to-br from-muted/30 to-transparent"
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <Award className="h-4 w-4" />
+              <span>Final Objective: Target Result</span>
+            </div>
+            {completedCount === lesson.tasks.length && lesson.tasks.length > 0 ? (
+              <Badge className="bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 text-[10px] font-mono">
+                ✓ Objective Achieved
               </Badge>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">
-                {lesson.checkpointExam.title}
-              </h4>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {lesson.checkpointExam.scenarioContext}
-              </p>
-            </div>
-
-            {/* Checkpoint questions summary */}
-            <div className="space-y-2 pt-1 border-t border-emerald-500/20">
-              {lesson.checkpointExam.questions.map((q, qIdx) => {
-                const hintId = `cp-${q.id}`;
-                const isHintOpen = !!openHints[hintId];
-
-                return (
-                  <div key={q.id} className="p-2.5 rounded-lg bg-card/80 border border-border/80 text-xs space-y-1">
-                    <div className="font-semibold text-foreground flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] flex items-center justify-center font-bold">
-                        {qIdx + 1}
-                      </span>
-                      <span>{q.title}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground pl-5.5">
-                      {q.prompt}
-                    </p>
-
-                    {/* Checkpoint Hint: Hidden until clicked */}
-                    {q.hint && (
-                      <div className="pl-5.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleHint(hintId)}
-                          className="text-[10px] font-mono text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
-                        >
-                          <Lightbulb className="h-2.5 w-2.5" />
-                          <span>{isHintOpen ? "Hide objective hint" : "Need a hint?"}</span>
-                        </button>
-                        {isHintOpen && (
-                          <div className="mt-1 p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 font-mono text-[10px] flex items-center justify-between gap-2">
-                            <span>{q.hint}</span>
-                            <button
-                              onClick={() => handleCopyHint(q.hint!, hintId)}
-                              className="shrink-0 p-1 hover:bg-amber-500/20 rounded"
-                            >
-                              {copiedTaskId === hintId ? (
-                                <Check className="h-2.5 w-2.5 text-emerald-500" />
-                              ) : (
-                                <Copy className="h-2.5 w-2.5 text-amber-600" />
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            ) : (
+              <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground border-border">
+                Pending ({completedCount}/{lesson.tasks.length})
+              </Badge>
+            )}
           </div>
-        )}
+
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-foreground">
+              {lesson.finalObjective?.title || (lesson.checkpointExam ? lesson.checkpointExam.title : `${lesson.title} Expected Outcome`)}
+            </h4>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {lesson.finalObjective?.description ||
+                (lesson.checkpointExam
+                  ? lesson.checkpointExam.scenarioContext
+                  : "Consolidate and verify the target dataset and query results against business requirements.")}
+            </p>
+          </div>
+
+          {/* Expected Outcome Specifications */}
+          <div className="p-3 rounded-lg bg-card/90 border border-border/80 text-xs font-mono space-y-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Expected Output / Verification Target</span>
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {lesson.tasks.length} / {lesson.tasks.length} Requirements
+              </span>
+            </div>
+
+            {lesson.finalObjective?.expectedOutput ? (
+              <pre className="p-2 rounded bg-muted/50 border border-border/50 text-[11px] text-foreground overflow-x-auto whitespace-pre-wrap">
+                {lesson.finalObjective.expectedOutput}
+              </pre>
+            ) : (
+              <div className="space-y-1.5 text-[11px]">
+                {lesson.tasks.map((t, idx) => (
+                  <div key={t.id} className="flex items-center gap-2 text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="truncate">
+                      Target {idx + 1}: {t.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Objective Auto-check Status */}
+          {completedCount === lesson.tasks.length && lesson.tasks.length > 0 ? (
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 text-xs">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                  Target Criteria Fully Satisfied!
+                </div>
+                <div className="text-[11px] text-emerald-800 dark:text-emerald-300/90 font-sans leading-relaxed">
+                  All {lesson.tasks.length} lab tasks have been executed and validated against the live database engine. The final objective is verified.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/40 border border-border/80 text-muted-foreground text-xs">
+              <Circle className="h-4 w-4 text-muted-foreground/60 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="font-medium text-foreground">Verification Requirement</div>
+                <div className="text-[11px] text-muted-foreground font-sans leading-relaxed">
+                  Complete all {lesson.tasks.length} guided tasks in &ldquo;Lab Tasks to Try&rdquo; above. This final objective will automatically check off once all tasks are satisfied ({completedCount}/{lesson.tasks.length} completed).
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Section 3: Quick Syntax Reference Sheet (Collapsed Accordion) */}
         <div className="rounded-xl border border-border bg-card p-3 space-y-2">

@@ -116,13 +116,22 @@ export const crudLessons: Lesson[] = [
         title: "Customer Support Ticket Ingestion Pipeline",
         companyOrContext: "Zendesk/Intercom Clone (HelpDesk Inc)",
         problemStatement:
-          "You are building the ingestion webhook for HelpDesk Inc. A customer submits two urgent support tickets. You need to write an INSERT statement to add both tickets to the `tickets` table in one batch operation.\n\nTable schema: `tickets (id INTEGER PRIMARY KEY, subject VARCHAR(200), customer_email VARCHAR(150), priority VARCHAR(20))`.\n\nInsert:\n1. Subject: 'Login authentication failure', Email: 'ceo@acme.com', Priority: 'urgent'\n2. Subject: 'Invoice PDF download broken', Email: 'billing@globex.org', Priority: 'high'",
+          "You are building the ingestion webhook for HelpDesk Inc. A customer submits two urgent support tickets. You need to write an INSERT statement to add both tickets to the `tickets` table in one batch operation.\n\nIncoming Ticket Queue:\n1. Subject: 'Login authentication failure' from 'ceo@acme.com' with 'urgent' priority\n2. Subject: 'Invoice PDF download broken' from 'billing@globex.org' with 'high' priority",
+        previewTable: {
+          tableName: "tickets",
+          description: "Support Desk Ingestion Queue Target",
+          columns: ["id", "subject", "customer_email", "priority"],
+          rows: [
+            [1, "Login authentication failure", "ceo@acme.com", "urgent"],
+            [2, "Invoice PDF download broken", "billing@globex.org", "high"],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS tickets (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  subject VARCHAR(200) NOT NULL,\n  customer_email VARCHAR(150) NOT NULL,\n  priority VARCHAR(20) NOT NULL\n);",
         requirements: [
           {
             id: "req-1",
-            text: "Insert ticket for ceo@acme.com",
+            text: "Batch-ingest the urgent authentication issue submitted by ceo@acme.com",
             hint: "VALUES ('Login authentication failure', 'ceo@acme.com', 'urgent')",
             syntaxPattern: /ceo@acme\.com/i,
             validationRule: {
@@ -132,7 +141,7 @@ export const crudLessons: Lesson[] = [
           },
           {
             id: "req-2",
-            text: "Insert ticket for billing@globex.org in the same statement",
+            text: "Batch-ingest the high priority invoice issue submitted by billing@globex.org in the same statement",
             hint: "('Invoice PDF download broken', 'billing@globex.org', 'high')",
             syntaxPattern: /billing@globex\.org/i,
             validationRule: {
@@ -328,31 +337,43 @@ export const crudLessons: Lesson[] = [
         title: "Music Streaming Leaderboard: Top 5 Viral Tracks",
         companyOrContext: "SoundWave Global (Streaming Platform)",
         problemStatement:
-          "You are the data engineer powering the homepage leaderboard for SoundWave. The mobile app needs to display the top 5 most-played songs.\n\nTable: `songs (id, title, artist, play_count, genre)`.\nWrite a query that projects `title`, `artist`, and `play_count`, ordered by `play_count` in descending order, restricted to exactly 5 songs.",
+          "You are the data engineer powering the homepage leaderboard for SoundWave. The mobile app needs to display the top 5 most-played songs.\n\nLeaderboard criteria:\n1. Select the track's title, artist, and play count.\n2. Rank songs from highest total streams to lowest.\n3. Restrict the result set to the top 5 tracks for the mobile screen card.",
+        previewTable: {
+          tableName: "songs",
+          description: "SoundWave Global Streaming Catalog",
+          columns: ["id", "title", "artist", "play_count", "genre"],
+          rows: [
+            [1, "Blinding Lights", "The Weeknd", 3500000, "Pop"],
+            [2, "Shape of You", "Ed Sheeran", 3100000, "Pop"],
+            [3, "Someone You Loved", "Lewis Capaldi", 2800000, "Pop"],
+            [4, "Sunflower", "Post Malone", 2750000, "Hip Hop"],
+            [5, "Starboy", "The Weeknd", 2600000, "R&B"],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS songs (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  title VARCHAR(120) NOT NULL,\n  artist VARCHAR(120) NOT NULL,\n  play_count INTEGER NOT NULL,\n  genre VARCHAR(50)\n);\nINSERT OR IGNORE INTO songs (id, title, artist, play_count, genre) VALUES\n  (1, 'Blinding Lights', 'The Weeknd', 3500000, 'Pop'),\n  (2, 'Shape of You', 'Ed Sheeran', 3100000, 'Pop'),\n  (3, 'Someone You Loved', 'Lewis Capaldi', 2800000, 'Pop'),\n  (4, 'Sunflower', 'Post Malone', 2750000, 'Hip Hop'),\n  (5, 'Starboy', 'The Weeknd', 2600000, 'R&B'),\n  (6, 'One Dance', 'Drake', 2500000, 'Afrobeats'),\n  (7, 'Closer', 'The Chainsmokers', 2400000, 'EDM');",
         requirements: [
           {
             id: "req-1",
-            text: "Project columns: title, artist, play_count",
+            text: "Select track title, artist, and play count columns",
             hint: "SELECT title, artist, play_count",
             syntaxPattern: /select\s+(?=.*\btitle\b)(?=.*\bartist\b)(?=.*\bplay_count\b)/i,
           },
           {
             id: "req-2",
-            text: "Read from the songs table",
+            text: "Query from the `songs` catalog table",
             hint: "FROM songs",
             syntaxPattern: /from\s+songs/i,
           },
           {
             id: "req-3",
-            text: "Sort by play_count descending",
+            text: "Rank records in descending order of play count",
             hint: "ORDER BY play_count DESC",
             syntaxPattern: /order\s+by\s+play_count\s+desc/i,
           },
           {
             id: "req-4",
-            text: "Limit output to 5 items",
+            text: "Cap the output to the top 5 tracks",
             hint: "LIMIT 5;",
             syntaxPattern: /limit\s+5/i,
           },
@@ -551,25 +572,38 @@ export const crudLessons: Lesson[] = [
         title: "E-Commerce Fraud Detection: Flagged Transactions",
         companyOrContext: "SecurePay Gateway",
         problemStatement:
-          "The fraud detection team at SecurePay needs to identify suspicious transactions. You must query the `transactions` table to flag potential fraudulent charges.\n\nCriteria:\n1. Transaction amount must be between 500 and 5000 inclusive.\n2. Risk status must be either 'review' or 'flagged'.\n3. Cardholder country must NOT be 'US'.",
+          "The risk engineering team at SecurePay needs to identify suspicious transactions for audit inspection.\n\nRisk assessment rules:\n1. Isolate transactions with monetary amounts between $500 and $5,000 inclusive.\n2. Filter for transactions flagged by risk assessment as either 'review' or 'flagged'.\n3. Exclude domestic United States transactions ('US') to analyze cross-border anomalies.",
+        previewTable: {
+          tableName: "transactions",
+          description: "SecurePay Live Transaction Audit Log",
+          columns: ["id", "amount", "risk_status", "country"],
+          rows: [
+            [1, 1200.0, "review", "DE"],
+            [2, 450.0, "review", "GB"],
+            [3, 3200.0, "flagged", "BR"],
+            [4, 7500.0, "flagged", "CA"],
+            [5, 1800.0, "approved", "FR"],
+            [6, 2100.0, "review", "US"],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS transactions (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  amount REAL NOT NULL,\n  risk_status VARCHAR(20) NOT NULL,\n  country VARCHAR(10) NOT NULL\n);\nINSERT OR IGNORE INTO transactions (id, amount, risk_status, country) VALUES\n  (1, 1200, 'review', 'DE'),\n  (2, 450, 'review', 'GB'),\n  (3, 3200, 'flagged', 'BR'),\n  (4, 7500, 'flagged', 'CA'),\n  (5, 1800, 'approved', 'FR'),\n  (6, 2100, 'review', 'US'),\n  (7, 850, 'flagged', 'JP');",
         requirements: [
           {
             id: "req-1",
-            text: "Filter amount between 500 and 5000",
+            text: "Select transaction charges with amounts between $500 and $5,000 inclusive",
             hint: "amount BETWEEN 500 AND 5000",
             syntaxPattern: /(amount\s+between\s+500\s+and\s+5000|amount\s*>=\s*500\s+and\s+amount\s*<=\s*5000)/i,
           },
           {
             id: "req-2",
-            text: "Filter risk status IN ('review', 'flagged')",
+            text: "Target charges marked under risk assessment as either review or flagged",
             hint: "risk_status IN ('review', 'flagged')",
             syntaxPattern: /(risk_status\s+in\s*\(\s*['"]review['"]\s*,\s*['"]flagged['"]\s*\)|risk_status\s*=\s*['"]review['"]\s+or\s+risk_status\s*=\s*['"]flagged['"])/i,
           },
           {
             id: "req-3",
-            text: "Filter country != 'US'",
+            text: "Exclude domestic transactions originating from the United States ('US')",
             hint: "country != 'US'",
             syntaxPattern: /country\s*(!=|<>)\s*['"]US['"]/i,
           },
@@ -751,19 +785,30 @@ export const crudLessons: Lesson[] = [
         title: "Subscription Renewal & Account Pruning",
         companyOrContext: "CloudStream SaaS Media",
         problemStatement:
-          "You are the database engineer maintaining subscriber accounts at CloudStream. Two maintenance operations must be performed:\n1. Upgrade subscriber 'alice@cloud.com' to tier 'pro' and set `monthly_fee` to 29.99.\n2. Delete all expired accounts where `status = 'cancelled'` and `days_inactive > 90`.",
+          "You are the database engineer maintaining subscriber accounts at CloudStream. Two maintenance operations must be performed on the subscriber accounts:\n1. Upgrade subscriber 'alice@cloud.com' to professional status ('pro') with an updated monthly fee of $29.99.\n2. Clean up churned records by deleting cancelled subscriptions that have been inactive for more than 90 days.",
+        previewTable: {
+          tableName: "subscribers",
+          description: "CloudStream Subscriber Accounts",
+          columns: ["id", "email", "tier", "monthly_fee", "status", "days_inactive"],
+          rows: [
+            [1, "alice@cloud.com", "basic", 9.99, "active", 2],
+            [2, "bob@cloud.com", "basic", 9.99, "cancelled", 120],
+            [3, "carol@cloud.com", "pro", 29.99, "active", 0],
+            [4, "dave@cloud.com", "enterprise", 99.99, "cancelled", 45],
+          ],
+        },
         schemaSetupSQL:
           "CREATE TABLE IF NOT EXISTS subscribers (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  email VARCHAR(150) NOT NULL UNIQUE,\n  tier VARCHAR(20) NOT NULL,\n  monthly_fee REAL NOT NULL,\n  status VARCHAR(20) NOT NULL,\n  days_inactive INTEGER NOT NULL\n);\nINSERT OR IGNORE INTO subscribers (id, email, tier, monthly_fee, status, days_inactive) VALUES\n  (1, 'alice@cloud.com', 'basic', 9.99, 'active', 2),\n  (2, 'bob@cloud.com', 'basic', 9.99, 'cancelled', 120),\n  (3, 'carol@cloud.com', 'pro', 29.99, 'active', 0),\n  (4, 'dave@cloud.com', 'enterprise', 99.99, 'cancelled', 45);",
         requirements: [
           {
             id: "req-1",
-            text: "Update alice@cloud.com to tier 'pro'",
+            text: "Promote subscriber alice@cloud.com to tier 'pro' and update monthly fee to 29.99",
             hint: "UPDATE subscribers SET tier = 'pro', monthly_fee = 29.99 WHERE email = 'alice@cloud.com'",
             syntaxPattern: /update\s+subscribers\s+set[\s\S]*tier\s*=\s*['"]pro['"][\s\S]*where[\s\S]*alice@cloud\.com/i,
           },
           {
             id: "req-2",
-            text: "Delete cancelled accounts inactive for > 90 days",
+            text: "Purge inactive cancelled subscriptions exceeding the 90-day threshold",
             hint: "DELETE FROM subscribers WHERE status = 'cancelled' AND days_inactive > 90",
             syntaxPattern: /delete\s+from\s+subscribers\s+where[\s\S]*cancelled[\s\S]*days_inactive\s*>\s*90/i,
           },

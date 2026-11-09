@@ -16,6 +16,7 @@ import {
   Terminal,
   Lightbulb,
   Trophy,
+  Table,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,12 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const [showSolution, setShowSolution] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
+  const [tablePreview, setTablePreview] = useState<{
+    tableName?: string;
+    description?: string;
+    columns: string[];
+    rows: (string | number | null)[][];
+  } | null>(exercise.previewTable || null);
 
   // Ensure tables are up when exercise loads or db becomes ready
   useEffect(() => {
@@ -55,15 +62,38 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
     setShowSolution(false);
     setOpenHints({});
 
+    if (exercise.previewTable) {
+      setTablePreview(exercise.previewTable);
+    } else {
+      setTablePreview(null);
+    }
+
     if (dbReady && exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
       try {
         rollbackIfInTransaction();
         executeQuery(exercise.schemaSetupSQL);
+
+        // If no explicit previewTable, inspect live table from schema setup
+        if (!exercise.previewTable) {
+          const match = exercise.schemaSetupSQL.match(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-zA-Z0-9_]+)/i);
+          if (match && match[1]) {
+            const tbl = match[1];
+            const res = executeQuery(`SELECT * FROM ${tbl} LIMIT 5`);
+            if (res && res.columns.length > 0) {
+              setTablePreview({
+                tableName: tbl,
+                description: `Live instance dataset preview (${res.values.length} sample row${res.values.length === 1 ? "" : "s"})`,
+                columns: res.columns,
+                rows: res.values,
+              });
+            }
+          }
+        }
       } catch (err) {
         console.warn("[Scenario] Initial schema setup notice:", err);
       }
     }
-  }, [exercise.id, exercise.starterSQL, dbReady, executeQuery, exercise.schemaSetupSQL]);
+  }, [exercise.id, exercise.starterSQL, exercise.previewTable, dbReady, executeQuery, exercise.schemaSetupSQL]);
 
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
@@ -291,6 +321,57 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           {exercise.problemStatement}
         </div>
       </div>
+
+      {/* Scenario Data Table Preview */}
+      {tablePreview && (
+        <div className="space-y-2 rounded-xl border border-sky-500/25 bg-sky-500/[0.04] p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-mono">
+            <div className="flex items-center gap-2 text-foreground font-semibold">
+              <Table className="h-4 w-4 text-sky-500" />
+              <span>Data Table Reference:</span>
+              {tablePreview.tableName && (
+                <code className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/25">
+                  {tablePreview.tableName}
+                </code>
+              )}
+            </div>
+            {tablePreview.description && (
+              <span className="text-[11px] text-muted-foreground font-sans">
+                {tablePreview.description}
+              </span>
+            )}
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-border/80 bg-card shadow-xs">
+            <table className="w-full text-left font-mono text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/50 text-muted-foreground text-[11px]">
+                  {tablePreview.columns.map((col, idx) => (
+                    <th key={idx} className="px-3 py-2 font-semibold">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {tablePreview.rows.map((row, rIdx) => (
+                  <tr key={rIdx} className="hover:bg-muted/20 transition-colors">
+                    {row.map((val, cIdx) => (
+                      <td key={cIdx} className="px-3 py-2 text-foreground/90 whitespace-nowrap">
+                        {val === null ? (
+                          <span className="text-muted-foreground/60 italic text-[11px]">NULL</span>
+                        ) : (
+                          String(val)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Architecture Requirements Checklist */}
       <div className="space-y-3">

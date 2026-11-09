@@ -113,6 +113,12 @@ export interface ScenarioExercise {
   title: string;
   companyOrContext: string;
   problemStatement: string;
+  previewTable?: {
+    tableName?: string;
+    description?: string;
+    columns: string[];
+    rows: (string | number | null)[][];
+  };
   requirements: ScenarioRequirement[];
   schemaSetupSQL?: string;
   starterSQL?: string;
@@ -161,6 +167,13 @@ export interface Lesson {
   intuitionCheck?: IntuitionCheck;
   exercises?: LessonExercise[];
   checkpointExam?: CheckpointExam;
+  finalObjective?: {
+    title: string;
+    description: string;
+    expectedOutput?: string;
+    expectedColumns?: string[];
+    expectedResult?: (string | number | null)[][];
+  };
 }
 
 // ─── Terminal ──────────────────────────────────────────────────────────────
