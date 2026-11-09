@@ -83,16 +83,15 @@ export default function LessonWorkspacePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUpdates, setShowUpdates] = useState(false);
 
-  // Require user to see updates before continuing the module
+  // Require user to see website updates once before continuing
   useEffect(() => {
-    if (!lesson) return;
     if (typeof window !== "undefined") {
-      const seen = localStorage.getItem(`mysql-academy-seen-updates-${lesson.slug}`);
+      const seen = localStorage.getItem("mysql-academy-seen-platform-updates");
       if (seen !== "true") {
         setShowUpdates(true);
       }
     }
-  }, [lesson?.slug, lesson]);
+  }, []);
 
   const handleDismissUpdates = () => {
     setShowUpdates(false);
@@ -261,9 +260,8 @@ export default function LessonWorkspacePage() {
         title="Student Sign-In Required"
         description={`Please sign in to access "${lesson.title}", run queries in the interactive database sandbox, and save your progress.`}
       >
-        {/* Module Updates Interstitial Modal (User must see updates before continuing module) */}
+        {/* Platform Updates Interstitial Modal */}
         <ModuleUpdatesModal
-          lesson={lesson}
           isOpen={showUpdates}
           onContinue={handleDismissUpdates}
           onClose={() => setShowUpdates(false)}
@@ -361,13 +359,13 @@ export default function LessonWorkspacePage() {
             <span>{isCompleted ? "Completed" : "Mark as Done"}</span>
           </Button>
 
-          {/* Module Updates Button */}
+          {/* Platform Updates Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowUpdates(true)}
             className="h-7 px-2 text-xs gap-1 border-border text-muted-foreground hover:text-foreground shrink-0"
-            title="Review updates and release notes for this module"
+            title="Review website release notes and updates"
           >
             <Sparkles className="h-3 w-3 text-emerald-400" />
             <span className="hidden sm:inline">Updates</span>

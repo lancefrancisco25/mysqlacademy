@@ -156,8 +156,8 @@ export const joinsLessons: Lesson[] = [
           id: "cp-ij-1",
           title: "Perform Staff-Department Equi-Join",
           prompt:
-            "Join `staff s` with `departments d` on `s.department_id = d.id`, selecting `s.name` and `d.name`.",
-          hint: "SELECT s.name, d.name FROM staff s INNER JOIN departments d ON s.department_id = d.id;",
+            "Westfield's human resources department needs an authoritative employee directory mapping each staff member to their official administrative unit. Formulate an equi-join linking staff personnel with departments via their foreign key relationship, outputting the employee's name and department title.",
+          hint: "Use an INNER JOIN on matching primary-foreign key keys (department_id = id) and alias table names for cleaner projection syntax.",
           solutionSQL:
             "SELECT s.name, d.name\nFROM staff s\nINNER JOIN departments d ON s.department_id = d.id;",
           validation: {
@@ -171,8 +171,8 @@ export const joinsLessons: Lesson[] = [
           id: "cp-ij-2",
           title: "Filter by Engineering Department",
           prompt:
-            "Write a query selecting `s.name`, `d.name`, and `s.salary` from `staff s` joined with `departments d` on `s.department_id = d.id` where `d.name = 'Engineering'`.",
-          hint: "SELECT s.name, d.name, s.salary FROM staff s INNER JOIN departments d ON s.department_id = d.id WHERE d.name = 'Engineering';",
+            "The Dean of STEM requested an audit of all active faculty members teaching within the Engineering faculty. Build on your departmental join to project each instructor's name, department title, and salary, restricting results strictly to the Engineering branch.",
+          hint: "Attach a WHERE predicate filtering by department name equality after establishing the inner join relation.",
           solutionSQL:
             "SELECT s.name, d.name, s.salary\nFROM staff s\nINNER JOIN departments d ON s.department_id = d.id\nWHERE d.name = 'Engineering';",
           validation: {
@@ -374,8 +374,8 @@ export const joinsLessons: Lesson[] = [
           id: "cp-lr-1",
           title: "Execute Complete Customer LEFT JOIN",
           prompt:
-            "Perform a LEFT JOIN between `customers c` and `purchases p` on `c.id = p.customer_id`, selecting `c.name` and `p.item`.",
-          hint: "SELECT c.name, p.item FROM customers c LEFT JOIN purchases p ON c.id = p.customer_id;",
+            "The marketing analytics team is tracking customer engagement and needs a consolidated view of buyer activity. Query every single registered customer alongside their purchased items, ensuring that inactive customers who have never placed an order are preserved in the result set rather than dropped.",
+          hint: "Employ an outer LEFT JOIN with customers on the left side so non-purchasing clients appear with NULL order attributes.",
           solutionSQL:
             "SELECT c.name, p.item\nFROM customers c\nLEFT JOIN purchases p ON c.id = p.customer_id;",
           validation: {
@@ -557,8 +557,8 @@ export const joinsLessons: Lesson[] = [
           id: "cp-sq-1",
           title: "Query Above-Average Priced Catalog Products",
           prompt:
-            "Select `name` and `price` of products where `price > (SELECT AVG(price) FROM products)`.",
-          hint: "SELECT name, price FROM products WHERE price > (SELECT AVG(price) FROM products);",
+            "Westfield's merchandizing division is curating a high-tier product showcase. Dynamically isolate all inventory items that command a price strictly greater than the overall catalog-wide average unit price, projecting the product's name and price without hardcoding any scalar thresholds.",
+          hint: "Encapsulate an aggregate AVG() computation inside a parenthesized subquery within your WHERE price comparison.",
           solutionSQL:
             "SELECT name, price\nFROM products\nWHERE price > (SELECT AVG(price) FROM products);",
           validation: {

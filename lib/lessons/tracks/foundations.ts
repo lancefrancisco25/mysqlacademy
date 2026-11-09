@@ -186,8 +186,8 @@ export const foundationsLessons: Lesson[] = [
           id: "cp-cd-1",
           title: "Deploy the Students Table Schema",
           prompt:
-            "Write the complete SQL DDL statement to create the table `students` with: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `name` (VARCHAR(100) NOT NULL), `age` (INTEGER), and `email` (VARCHAR(150)).",
-          hint: "CREATE TABLE students (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(100) NOT NULL, age INTEGER, email VARCHAR(150));",
+            "Westfield Academy requires a centralized entity relation named 'students' to manage the incoming academic cohort. The architecture requires an integer surrogate primary key that automatically increments for new admissions, a non-nullable student full name allowing up to 100 characters, a numeric age field, and an optional contact email address accommodating up to 150 characters. Write the DDL statement to instantiate this table.",
+          hint: "Use CREATE TABLE with primary key auto-increment syntax, ensure the name column rejects null values, and allocate appropriate variable character length limits.",
           solutionSQL:
             "CREATE TABLE students (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  age INTEGER,\n  email VARCHAR(150)\n);",
           validation: {
@@ -199,8 +199,8 @@ export const foundationsLessons: Lesson[] = [
           id: "cp-cd-2",
           title: "Introspect and Verify Table Registration",
           prompt:
-            "Execute the command to list all registered tables in your active database instance to confirm `students` exists.",
-          hint: "Run: SHOW TABLES;",
+            "Before opening ingestion pipelines, perform an engine metadata introspection to verify that the active database catalog successfully registered your new table relation alongside existing tables.",
+          hint: "Recall the standard MySQL utility statement used to display all existing relations within the active schema catalog.",
           solutionSQL: "SHOW TABLES;",
           validation: {
             type: "query_result",
@@ -429,8 +429,8 @@ export const foundationsLessons: Lesson[] = [
           id: "cp-ct-1",
           title: "Build the Courses Table with NOT NULL and DEFAULT",
           prompt:
-            "Create a table named `courses` with: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `title` (VARCHAR(150) NOT NULL), and `credits` (INTEGER DEFAULT 3).",
-          hint: "CREATE TABLE courses (id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(150) NOT NULL, credits INTEGER DEFAULT 3);",
+            "Westfield's academic registrar requires a relational entity named 'courses' to structure the semester curriculum. The entity must assign an auto-incrementing integer as its unique primary key, enforce that every course has a mandatory title up to 150 characters, and automatically default academic workload to 3 credits whenever credit units are not explicitly provided. Compose the DDL statement enforcing these integrity constraints.",
+          hint: "Pair NOT NULL on the title attribute with the DEFAULT clause on credits to automatically handle omitted credit values.",
           solutionSQL:
             "CREATE TABLE courses (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  title VARCHAR(150) NOT NULL,\n  credits INTEGER DEFAULT 3\n);",
           validation: {
@@ -442,8 +442,8 @@ export const foundationsLessons: Lesson[] = [
           id: "cp-ct-2",
           title: "Inspect Schema Details for Courses",
           prompt:
-            "Execute the command to inspect the column specifications and verify the default values of `courses`.",
-          hint: "DESCRIBE courses;",
+            "Perform a structural column audit on your newly deployed 'courses' entity to verify that the credit default clause and nullability restrictions are registered as designed.",
+          hint: "Use the MySQL schema introspection command that outputs column names, data types, nullability rules, and default assignments.",
           solutionSQL: "DESCRIBE courses;",
           validation: {
             type: "column_exists",
@@ -677,8 +677,8 @@ export const foundationsLessons: Lesson[] = [
           id: "cp-dt-1",
           title: "Deploy the Professors Table with Strict Types",
           prompt:
-            "Create a table named `professors` with: `id` (INTEGER PRIMARY KEY AUTOINCREMENT), `name` (VARCHAR(100) NOT NULL), `department` (VARCHAR(100)), `salary` (REAL NOT NULL), and `hire_date` (DATE NOT NULL).",
-          hint: "CREATE TABLE professors (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(100) NOT NULL, department VARCHAR(100), salary REAL NOT NULL, hire_date DATE NOT NULL);",
+            "Westfield Human Resources needs a strict payroll relation named 'professors' to onboard faculty members. The schema requires an auto-incrementing integer primary key identifier, a required faculty name up to 100 characters, an optional department name up to 100 characters, a mandatory floating-point decimal salary (REAL) that cannot be left blank, and a non-null calendar onboarding date (DATE). Construct the table definition ensuring all types and constraints align with HR compliance.",
+          hint: "Use appropriate data types: REAL for decimal compensation figures, DATE for calendar stamps, and attach NOT NULL to all non-negotiable fields.",
           solutionSQL:
             "CREATE TABLE professors (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  department VARCHAR(100),\n  salary REAL NOT NULL,\n  hire_date DATE NOT NULL\n);",
           validation: {
@@ -690,8 +690,8 @@ export const foundationsLessons: Lesson[] = [
           id: "cp-dt-2",
           title: "Inspect Column Type Blueprint",
           prompt:
-            "Run DESCRIBE professors; to verify that all column types and nullability constraints were applied correctly.",
-          hint: "DESCRIBE professors;",
+            "Audit the structural blueprint of the 'professors' table to confirm that the hire date and salary attributes correctly enforce their respective data types and non-null guarantees.",
+          hint: "Run the schema descriptor statement targeting the faculty relation to inspect its columns and data types.",
           solutionSQL: "DESCRIBE professors;",
           validation: {
             type: "column_exists",

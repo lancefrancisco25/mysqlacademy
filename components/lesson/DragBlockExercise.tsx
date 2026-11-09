@@ -76,14 +76,16 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
   // Sync / reset when navigating to another exercise and rehydrate persisted completion
   useEffect(() => {
     let saved: any = null;
+    let isExplicitlyReset = false;
     if (typeof window !== "undefined") {
       try {
+        isExplicitlyReset = localStorage.getItem(`mysql-academy-dragblock-reset-${exercise.id}`) === "true";
         const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
         if (raw) saved = JSON.parse(raw);
       } catch {}
     }
 
-    if (saved?.completed || isLessonDone) {
+    if (!isExplicitlyReset && (saved?.completed || isLessonDone)) {
       const solved = exercise.solution
         .map((id) => exercise.blocks.find((b) => b.id === id))
         .filter(Boolean) as DragBlock[];
@@ -121,6 +123,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem(`mysql-academy-dragblock-${exercise.id}`);
+        localStorage.setItem(`mysql-academy-dragblock-reset-${exercise.id}`, "true");
       } catch {}
     }
   };
@@ -177,6 +180,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       setStatus("correct");
       if (typeof window !== "undefined") {
         try {
+          localStorage.removeItem(`mysql-academy-dragblock-reset-${exercise.id}`);
           localStorage.setItem(
             `mysql-academy-dragblock-${exercise.id}`,
             JSON.stringify({ completed: true })

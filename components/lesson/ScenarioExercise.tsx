@@ -86,7 +86,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const [showSolution, setShowSolution] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
-  const [isResettingTerminal, setIsResettingTerminal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [resetNotice, setResetNotice] = useState<string | null>(null);
   const [tablePreview, setTablePreview] = useState<{
     tableName?: string;
@@ -99,14 +99,16 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   // and rehydrate persisted completion even across page refreshes
   useEffect(() => {
     let savedState: { completed?: boolean; completedRequirements?: string[]; code?: string } | null = null;
+    let isExplicitlyReset = false;
     if (typeof window !== "undefined") {
       try {
+        isExplicitlyReset = localStorage.getItem(`mysql-academy-scenario-reset-${exercise.id}`) === "true";
         const raw = localStorage.getItem(`mysql-academy-scenario-${exercise.id}`);
         if (raw) savedState = JSON.parse(raw);
       } catch {}
     }
 
-    if (savedState?.completed || isLessonDone) {
+    if (!isExplicitlyReset && (savedState?.completed || isLessonDone)) {
       setCompletedRequirements(exercise.requirements.map((r) => r.id));
       setSqlCode(exercise.solutionSQL);
       // Do NOT open solution or hints automatically unless user explicitly clicks
@@ -287,6 +289,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       if (satisfied.length === exercise.requirements.length) {
         if (typeof window !== "undefined") {
           try {
+            localStorage.removeItem(`mysql-academy-scenario-reset-${exercise.id}`);
             localStorage.setItem(
               `mysql-academy-scenario-${exercise.id}`,
               JSON.stringify({
@@ -343,47 +346,40 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
     setSqlCode(exercise.solutionSQL);
   };
 
-  const handleResetTerminal = async () => {
-    setIsResettingTerminal(true);
+  const handleResetProblem = async () => {
+    setIsResetting(true);
     try {
       rollbackIfInTransaction();
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(`mysql-academy-scenario-${exercise.id}`);
+          localStorage.setItem(`mysql-academy-scenario-reset-${exercise.id}`, "true");
+        } catch {}
+      }
+      setCompletedRequirements([]);
+      setSqlCode(exercise.starterSQL || "");
+      setExecutionOutput(null);
+      setShowSolution(false);
+      setOpenHints({});
       if (currentLesson?.seedSQL) {
         await resetDB(currentLesson.seedSQL);
       }
       if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
-        executeQuery(exercise.schemaSetupSQL);
+        try {
+          executeQuery(exercise.schemaSetupSQL);
+        } catch (e) {
+          console.warn("[Scenario] Re-apply schema error:", e);
+        }
       }
-      setExecutionOutput(null);
-      setResetNotice("✓ Scenario terminal and database sandbox reset to clean initial state!");
+      if (exercise.previewTable) {
+        setTablePreview(exercise.previewTable);
+      }
+      setResetNotice("✓ Problem reset to unanswered. Workspace and database restored to clean starting state.");
       setTimeout(() => setResetNotice(null), 3500);
     } catch (err: any) {
-      console.warn("[Scenario] Reset terminal error:", err);
+      console.warn("[Scenario] Reset problem error:", err);
     } finally {
-      setIsResettingTerminal(false);
-    }
-  };
-
-  const handleResetCode = async () => {
-    rollbackIfInTransaction();
-    setSqlCode(exercise.starterSQL || "");
-    setExecutionOutput(null);
-    setCompletedRequirements([]);
-    setShowSolution(false);
-    setResetNotice(null);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem(`mysql-academy-scenario-${exercise.id}`);
-      } catch {}
-    }
-    if (currentLesson?.seedSQL) {
-      try {
-        await resetDB(currentLesson.seedSQL);
-      } catch {}
-    }
-    if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
-      try {
-        executeQuery(exercise.schemaSetupSQL);
-      } catch {}
+      setIsResetting(false);
     }
   };
 
@@ -549,20 +545,20 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
                     All Requirements Completed!
                   </h4>
                   <p className="text-xs text-muted-foreground font-sans">
-                    All {exercise.requirements.length} requirements passed. You can view the right answer below or reset the database.
+                    All {exercise.requirements.length} requirements passed. You can review the right answer below or reset this problem to practice again.
                   </p>
                 </div>
               </div>
 
-              {/* Reset Terminal Action Button */}
+              {/* Reset Problem Action Button */}
               <Button
                 type="button"
-                onClick={handleResetTerminal}
-                disabled={isResettingTerminal}
+                onClick={handleResetProblem}
+                disabled={isResetting}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-mono font-bold shrink-0 shadow-sm"
               >
-                <RotateCcw className={cn("h-3.5 w-3.5", isResettingTerminal && "animate-spin")} />
-                Reset Database
+                <RotateCcw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
+                Reset Problem
               </Button>
             </div>
 
@@ -572,60 +568,6 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
                 <span>{resetNotice}</span>
               </div>
             )}
-
-            {/* Right Answer (Collapsed until clicked) */}
-            <div className="pt-3 border-t border-emerald-500/25 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Right Answer
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSolution((prev) => !prev)}
-                    className="h-6 text-[10px] font-mono gap-1"
-                  >
-                    {showSolution ? "Hide Right Answer" : "Show Right Answer"}
-                  </Button>
-                  {showSolution && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleLoadSolution}
-                        className="h-6 text-[10px] font-mono gap-1"
-                      >
-                        Insert to Editor
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleCopySolution}
-                        className="h-6 text-[10px] font-mono gap-1"
-                      >
-                        {copiedSolution ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                        {copiedSolution ? "Copied" : "Copy"}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {showSolution && (
-                <div className="space-y-2 animate-in fade-in">
-                  <pre className="p-3.5 rounded-lg border border-zinc-800 bg-[#0c0d11] font-mono text-xs text-emerald-400 overflow-x-auto">
-                    <code>{exercise.solutionSQL}</code>
-                  </pre>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed font-sans pt-0.5">
-                    💡 <strong className="text-foreground">Why this design works:</strong>{" "}
-                    {exercise.solutionExplanation}
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -639,11 +581,13 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleResetCode}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              onClick={handleResetProblem}
+              disabled={isResetting}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 font-mono"
+              title="Reset problem to unanswered and roll back database changes"
             >
-              <RotateCcw className="h-3 w-3" />
-              Reset Code
+              <RotateCcw className={cn("h-3 w-3", isResetting && "animate-spin")} />
+              Reset Problem
             </button>
           </div>
         </div>

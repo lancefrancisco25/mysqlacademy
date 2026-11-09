@@ -168,8 +168,8 @@ export const transactionsLessons: Lesson[] = [
           id: "cp-tx-1",
           title: "Execute Atomic Account Transfer",
           prompt:
-            "Transfer 500 from Alice Johnson to Bob Smith within a transaction. Alice's balance must become 4500 and Bob's must become 12500.",
-          hint: "START TRANSACTION; UPDATE accounts SET balance = balance - 500 WHERE holder_name = 'Alice Johnson'; UPDATE accounts SET balance = balance + 500 WHERE holder_name = 'Bob Smith'; COMMIT;",
+            "Westfield's Bursar Office has approved a $500 tuition clearance transfer from Alice Johnson to Bob Smith. Execute an atomic transaction that deducts 500 from Alice's account ledger, credits 500 to Bob's balance, and commits both mutations atomically so that no currency can be lost or created during a system failure.",
+          hint: "Wrap both account UPDATE commands between START TRANSACTION and COMMIT to guarantee ACID atomicity and isolation.",
           solutionSQL:
             "START TRANSACTION;\nUPDATE accounts SET balance = balance - 500 WHERE holder_name = 'Alice Johnson';\nUPDATE accounts SET balance = balance + 500 WHERE holder_name = 'Bob Smith';\nCOMMIT;",
           validation: {
@@ -348,8 +348,8 @@ export const transactionsLessons: Lesson[] = [
           id: "cp-ix-1",
           title: "Create Point Index on user_id",
           prompt:
-            "Create an index named `idx_logs_user_id` on the `logs` table covering the `user_id` column.",
-          hint: "CREATE INDEX idx_logs_user_id ON logs(user_id);",
+            "Westfield's security audit queries are suffering from full table scans when looking up student activity history in the 'logs' relation. Build a point B-Tree index named 'idx_logs_user_id' over the user_id foreign key column to accelerate point lookups to logarithmic O(log N) time.",
+          hint: "Use CREATE INDEX referencing the target table and the specific column enclosed in parentheses.",
           solutionSQL: "CREATE INDEX idx_logs_user_id ON logs(user_id);",
           validation: {
             type: "query_result",
@@ -361,8 +361,8 @@ export const transactionsLessons: Lesson[] = [
           id: "cp-ix-2",
           title: "Create Composite Index on user_id and action",
           prompt:
-            "Create a composite index named `idx_logs_user_action` on the `logs` table covering both `user_id` and `action`.",
-          hint: "CREATE INDEX idx_logs_user_action ON logs(user_id, action);",
+            "Dashboard metrics frequently filter logs by user identity while simultaneously grouping by action type. Deploy a composite multi-column index named 'idx_logs_user_action' covering user_id followed by action to enable index-only covering scans.",
+          hint: "Specify both column identifiers separated by a comma within the parenthesized index definition.",
           solutionSQL: "CREATE INDEX idx_logs_user_action ON logs(user_id, action);",
           validation: {
             type: "query_result",

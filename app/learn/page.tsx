@@ -15,12 +15,14 @@ import {
   Trophy,
   Flame,
   BookOpen,
+  Sparkles,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AuthBarrier } from "@/components/auth/AuthBarrier";
+import { ModuleUpdatesModal } from "@/components/lesson/ModuleUpdatesModal";
 import { TRACKS, LESSONS, getLessonsForTrack } from "@/lib/lessons";
 import { useLessonStore } from "@/lib/store";
 
@@ -35,6 +37,7 @@ const ICON_MAP: Record<string, any> = {
 
 export default function LearnDashboardPage() {
   const [mounted, setMounted] = useState(false);
+  const [showUpdates, setShowUpdates] = useState(false);
   const progress = useLessonStore((s) => s.progress);
   const getOverallStats = useLessonStore((s) => s.getOverallStats);
 
@@ -47,6 +50,11 @@ export default function LearnDashboardPage() {
           useLessonStore.setState({ progress: JSON.parse(saved) });
         }
       } catch {}
+
+      const platformSeen = localStorage.getItem("mysql-academy-seen-platform-updates");
+      if (platformSeen !== "true") {
+        setShowUpdates(true);
+      }
     }
   }, []);
 
@@ -79,13 +87,31 @@ export default function LearnDashboardPage() {
                 Progress through 6 specialized tracks from relational basics to ACID transactions and index optimization.
               </p>
             </div>
-            <Link href="/learn/create-database">
-              <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2">
-                Resume Learning
-                <ArrowRight className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUpdates(true)}
+                className="gap-1.5 border-border text-muted-foreground hover:text-foreground text-xs font-mono h-10 px-3"
+                title="Review website release notes and updates"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Updates</span>
               </Button>
-            </Link>
+              <Link href="/learn/create-database">
+                <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 h-10">
+                  Resume Learning
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
+
+          <ModuleUpdatesModal
+            isOpen={showUpdates}
+            onContinue={() => setShowUpdates(false)}
+            onClose={() => setShowUpdates(false)}
+          />
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

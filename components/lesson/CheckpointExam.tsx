@@ -89,15 +89,17 @@ export function CheckpointExam({
   // Rehydrate persisted checkpoint state across page refreshes
   useEffect(() => {
     let saved: any = null;
+    let isExplicitlyReset = false;
     if (typeof window !== "undefined") {
       try {
+        isExplicitlyReset = localStorage.getItem(`mysql-academy-checkpoint-reset-${exam.id}`) === "true";
         const raw = localStorage.getItem(`mysql-academy-checkpoint-${exam.id}`);
         if (raw) saved = JSON.parse(raw);
       } catch {}
     }
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = isLessonDone || (saved?.passedQuestionIds?.includes(q.id) || false);
+      const isPassed = !isExplicitlyReset && (isLessonDone || (saved?.passedQuestionIds?.includes(q.id) || false));
       const code = isPassed ? (saved?.codes?.[q.id] || q.solutionSQL || "") : (saved?.codes?.[q.id] || "");
       initial[q.id] = {
         code: code,
@@ -173,6 +175,9 @@ export function CheckpointExam({
           if (typeof window !== "undefined") {
             try {
               const passedIds = exam.questions.filter((item) => next[item.id]?.passed).map((item) => item.id);
+              if (passedIds.length === exam.questions.length) {
+                localStorage.removeItem(`mysql-academy-checkpoint-reset-${exam.id}`);
+              }
               const codes: Record<string, string> = {};
               exam.questions.forEach((item) => {
                 codes[item.id] = next[item.id]?.code || "";
@@ -211,14 +216,67 @@ export function CheckpointExam({
     }
   };
 
-  const handleResetDatabase = async () => {
+  const handleResetQuestion = (qId: string) => {
+    rollbackIfInTransaction();
+    setQuestionStates((prev) => {
+      const next = {
+        ...prev,
+        [qId]: {
+          code: "",
+          passed: false,
+          feedback: undefined,
+          showHint: false,
+          showSolution: false,
+        },
+      };
+      if (typeof window !== "undefined") {
+        try {
+          const passedIds = exam.questions.filter((item) => next[item.id]?.passed).map((item) => item.id);
+          const codes: Record<string, string> = {};
+          exam.questions.forEach((item) => {
+            codes[item.id] = next[item.id]?.code || "";
+          });
+          localStorage.setItem(
+            `mysql-academy-checkpoint-${exam.id}`,
+            JSON.stringify({
+              passedQuestionIds: passedIds,
+              codes,
+              completed: passedIds.length === exam.questions.length,
+            })
+          );
+        } catch {}
+      }
+      return next;
+    });
+  };
+
+  const handleResetCheckpoint = async () => {
     setIsResettingDB(true);
     try {
       rollbackIfInTransaction();
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(`mysql-academy-checkpoint-${exam.id}`);
+          localStorage.setItem(`mysql-academy-checkpoint-reset-${exam.id}`, "true");
+        } catch {}
+      }
+
+      const resetQuestions: Record<string, any> = {};
+      exam.questions.forEach((q) => {
+        resetQuestions[q.id] = {
+          code: "",
+          passed: false,
+          feedback: undefined,
+          showHint: false,
+          showSolution: false,
+        };
+      });
+      setQuestionStates(resetQuestions);
+
       if (currentLesson?.seedSQL) {
         await resetDB(currentLesson.seedSQL);
       }
-      setResetNotice("✓ Database sandbox reset to initial lesson seed state!");
+      setResetNotice("✓ Checkpoint reset to unanswered. Database sandbox and editor restored.");
       setTimeout(() => setResetNotice(null), 3500);
     } catch (err: any) {
       console.warn("[Checkpoint] Reset DB error:", err);
@@ -397,12 +455,23 @@ export function CheckpointExam({
                       <Code2 className="h-3 w-3 text-emerald-400" />
                       Your SQL Query
                     </span>
-                    <button
-                      onClick={() => handleCodeChange(q.id, "")}
-                      className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                    >
-                      Clear
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleResetQuestion(q.id)}
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                        title="Reset question to unanswered"
+                      >
+                        Reset
+                      </button>
+                      <span className="text-zinc-700">|</span>
+                      <button
+                        onClick={() => handleCodeChange(q.id, "")}
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                        title="Clear editor code"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     value={state.code}
@@ -491,13 +560,14 @@ export function CheckpointExam({
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
               type="button"
-              onClick={handleResetDatabase}
+              onClick={handleResetCheckpoint}
               disabled={isResettingDB}
               variant="outline"
               className="border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-xs gap-1.5"
+              title="Reset checkpoint exam back to unanswered and restore initial database state"
             >
               <RotateCcw className={cn("h-3.5 w-3.5", isResettingDB && "animate-spin")} />
-              Reset Database Sandbox
+              Reset Checkpoint
             </Button>
 
             {nextLessonSlug && (

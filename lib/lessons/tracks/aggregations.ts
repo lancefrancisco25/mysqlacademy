@@ -176,8 +176,8 @@ export const aggregationsLessons: Lesson[] = [
           id: "cp-af-1",
           title: "Calculate Total Volume & Gross Revenue",
           prompt:
-            "Run a query calculating `COUNT(*)` as `total_count` and `SUM(amount)` as `total_amount` from the `sales` table.",
-          hint: "SELECT COUNT(*), SUM(amount) FROM sales;",
+            "Westfield's executive leadership needs the high-level quarterly revenue summary. Compute both the total number of closed transactions and the overall cumulative gross revenue recorded in the sales ledger.",
+          hint: "Apply the COUNT() and SUM() aggregate functions simultaneously within your projection targeting the amount column in sales.",
           solutionSQL: "SELECT COUNT(*), SUM(amount) FROM sales;",
           validation: {
             type: "query_result",
@@ -389,8 +389,8 @@ export const aggregationsLessons: Lesson[] = [
           id: "cp-gh-1",
           title: "Group Transactions by Category with Sums",
           prompt:
-            "Select `category` and `SUM(amount)` from the `transactions` table grouped by `category`.",
-          hint: "SELECT category, SUM(amount) FROM transactions GROUP BY category;",
+            "Financial reporting requires categorizing cash inflows by business vertical. Aggregate the transactions ledger to show each unique product category alongside the total revenue volume accumulated by that department.",
+          hint: "Pair a category projection and sum aggregate with a GROUP BY clause referencing the vertical category.",
           solutionSQL: "SELECT category, SUM(amount) FROM transactions GROUP BY category;",
           validation: {
             type: "query_result",
@@ -403,8 +403,8 @@ export const aggregationsLessons: Lesson[] = [
           id: "cp-gh-2",
           title: "Apply Post-Aggregation Threshold with HAVING",
           prompt:
-            "Write a query grouping by `category` that shows `category` and `SUM(amount)` where `SUM(amount) > 500`.",
-          hint: "SELECT category, SUM(amount) FROM transactions GROUP BY category HAVING SUM(amount) > 500;",
+            "The executive board only wants visibility into top-performing verticals. Refine your categorical revenue query to filter out minor segments and display solely those business lines whose cumulative revenue strictly exceeds $500.",
+          hint: "Remember that WHERE filters rows before aggregation, whereas HAVING filters aggregate sums after grouping.",
           solutionSQL:
             "SELECT category, SUM(amount) FROM transactions GROUP BY category HAVING SUM(amount) > 500;",
           validation: {

@@ -168,8 +168,8 @@ export const crudLessons: Lesson[] = [
           id: "cp-id-1",
           title: "Insert Primary Student Record",
           prompt:
-            "Write an INSERT statement to add Alice Johnson: first_name='Alice', last_name='Johnson', email='alice@university.edu'.",
-          hint: "INSERT INTO students (first_name, last_name, email) VALUES ('Alice', 'Johnson', 'alice@university.edu');",
+            "Westfield's admissions office needs to record their first admitted honors student into the 'students' registry. Register Alice Johnson into the database, specifying her first name, last name, and contact address as alice@university.edu.",
+          hint: "Use an INSERT INTO statement matching column names in parentheses with corresponding string literals in the VALUES clause.",
           solutionSQL:
             "INSERT INTO students (first_name, last_name, email)\nVALUES ('Alice', 'Johnson', 'alice@university.edu');",
           validation: {
@@ -182,8 +182,8 @@ export const crudLessons: Lesson[] = [
           id: "cp-id-2",
           title: "Batch Ingest Remaining Cohort",
           prompt:
-            "Execute a batch insert containing at least 4 additional students so that the table contains 5 or more total records.",
-          hint: "INSERT INTO students (first_name, last_name, email) VALUES ('Bob', 'S', 'b@u.edu'), ('Carol', 'W', 'c@u.edu'), ('Dave', 'M', 'd@u.edu'), ('Eve', 'T', 'e@u.edu');",
+            "The admissions portal has finalized intake for the rest of the freshman orientation group. Write a single multi-row ingestion query that adds at least 4 additional student records (including their first names, last names, and university email addresses) so the directory scales to at least 5 registered members.",
+          hint: "Chain multiple comma-separated value tuples after the VALUES keyword to execute an atomic multi-row batch insert.",
           solutionSQL:
             "INSERT INTO students (first_name, last_name, email)\nVALUES \n  ('Bob', 'Smith', 'bob@u.edu'),\n  ('Carol', 'Williams', 'carol@u.edu'),\n  ('Dave', 'Miller', 'dave@u.edu'),\n  ('Eve', 'Taylor', 'eve@u.edu');",
           validation: {
@@ -396,8 +396,8 @@ export const crudLessons: Lesson[] = [
           id: "cp-sb-1",
           title: "Project Departmental Staff Salaries",
           prompt:
-            "Write a query selecting `first_name`, `department`, and `salary` from the `employees` table.",
-          hint: "SELECT first_name, department, salary FROM employees;",
+            "The compensation audit committee needs an explicit column projection of Westfield's staff records. Retrieve each employee's first name, departmental assignment, and annual compensation from the employee directory without pulling unnecessary metadata.",
+          hint: "Specify the explicit column list in your SELECT projection targeting the employees relation.",
           solutionSQL: "SELECT first_name, department, salary FROM employees;",
           validation: {
             type: "row_count_gte",
@@ -411,8 +411,8 @@ export const crudLessons: Lesson[] = [
           id: "cp-sb-2",
           title: "Isolate Top 3 Highest Earners",
           prompt:
-            "Select `first_name` and `salary` from `employees`, ordered by `salary` descending, limited to the top 3 rows.",
-          hint: "SELECT first_name, salary FROM employees ORDER BY salary DESC LIMIT 3;",
+            "The executive board needs to identify the organization's highest compensated talent for annual bonus planning. Query the employee roster to display their first name and salary, sorting the results from greatest compensation downward, and restrict the output to isolate only the top 3 earners.",
+          hint: "Combine ORDER BY on the compensation column with the DESC qualifier and cap output volume using LIMIT.",
           solutionSQL: "SELECT first_name, salary FROM employees ORDER BY salary DESC LIMIT 3;",
           validation: {
             type: "query_result",
@@ -625,8 +625,9 @@ export const crudLessons: Lesson[] = [
         {
           id: "cp-wc-1",
           title: "Isolate All Completed Orders",
-          prompt: "Select all columns from `orders` where `status` is 'completed'.",
-          hint: "SELECT * FROM orders WHERE status = 'completed';",
+          prompt:
+            "Westfield Fulfillment operations requires an audit of all shipments that successfully reached destination. Filter the orders ledger to pull full record details exclusively for orders marked with a completed fulfillment status.",
+          hint: "Use a WHERE equality predicate matching the literal string 'completed' against the order status field.",
           solutionSQL: "SELECT * FROM orders WHERE status = 'completed';",
           validation: {
             type: "query_result",
@@ -638,8 +639,9 @@ export const crudLessons: Lesson[] = [
         {
           id: "cp-wc-2",
           title: "Filter High-Value Hardware Orders",
-          prompt: "Select all columns from `orders` where `price >= 300` AND `quantity >= 1`.",
-          hint: "SELECT * FROM orders WHERE price >= 300 AND quantity >= 1;",
+          prompt:
+            "The logistics team is reviewing insurance claims on premium shipments. Query the orders ledger to extract all shipments where unit value reaches or exceeds 300 while ensuring at least 1 unit was dispatched.",
+          hint: "Connect two numeric comparison predicates using the logical AND conjunction in your WHERE clause.",
           solutionSQL: "SELECT * FROM orders WHERE price >= 300 AND quantity >= 1;",
           validation: {
             type: "query_result",
@@ -831,8 +833,8 @@ export const crudLessons: Lesson[] = [
           id: "cp-ud-1",
           title: "Restock Widget B to 150 Units",
           prompt:
-            "Update the `inventory` table so that `quantity = 150` for the record where `product_name = 'Widget B'`.",
-          hint: "UPDATE inventory SET quantity = 150 WHERE product_name = 'Widget B';",
+            "A supplier delivery has arrived at Westfield's distribution center replenishing product stock. Modify the inventory record for 'Widget B' so that its on-hand stock count reflects exactly 150 available units.",
+          hint: "Use an UPDATE statement with SET targeting the quantity attribute, restricted by a WHERE clause on product name to prevent unintentional mass overwrites.",
           solutionSQL: "UPDATE inventory SET quantity = 150 WHERE product_name = 'Widget B';",
           validation: {
             type: "value_check",
@@ -843,8 +845,9 @@ export const crudLessons: Lesson[] = [
         {
           id: "cp-ud-2",
           title: "Purge Depleted Zero-Quantity Inventory",
-          prompt: "Delete all records from the `inventory` table where `quantity = 0`.",
-          hint: "DELETE FROM inventory WHERE quantity = 0;",
+          prompt:
+            "Westfield's warehouse catalog needs periodic pruning to remove discontinued and depleted inventory. Permanently purge all catalog items that have zero units remaining in stock.",
+          hint: "Use a DELETE FROM command paired with a strict WHERE condition evaluating zero quantity.",
           solutionSQL: "DELETE FROM inventory WHERE quantity = 0;",
           validation: {
             type: "query_result",

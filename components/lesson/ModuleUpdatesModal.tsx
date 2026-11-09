@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Lesson } from "@/types";
 
 interface ModuleUpdatesModalProps {
-  lesson: Lesson;
+  lesson?: Lesson;
   isOpen: boolean;
   onContinue: () => void;
   onClose?: () => void;
@@ -37,7 +37,10 @@ export function ModuleUpdatesModal({
   const handleContinue = () => {
     if (typeof window !== "undefined" && dontShowAgain) {
       try {
-        localStorage.setItem(`mysql-academy-seen-updates-${lesson.slug}`, "true");
+        localStorage.setItem("mysql-academy-seen-platform-updates", "true");
+        if (lesson) {
+          localStorage.setItem(`mysql-academy-seen-updates-${lesson.slug}`, "true");
+        }
       } catch {}
     }
     onContinue();
@@ -65,18 +68,18 @@ export function ModuleUpdatesModal({
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
-              Module Updates
+              Website Release Notes
             </span>
             <span className="text-xs text-muted-foreground font-mono">
-              Version 2.4
+              Version 2.4 Platform Update
             </span>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
-            {lesson.title} — What&apos;s New
+            What&apos;s New in MySQL Academy
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            Please review the latest features and updates added to this module before continuing your session.
+            Welcome to the updated learning platform! Review the new interactive tools, real-world scenario builders, and grading engines added across the academy.
           </p>
         </div>
 
@@ -167,7 +170,7 @@ export function ModuleUpdatesModal({
               onChange={(e) => setDontShowAgain(e.target.checked)}
               className="rounded border-border text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
             />
-            <span>Don&apos;t show updates again for this module</span>
+            <span>Don&apos;t show website updates again</span>
           </label>
 
           <Button
@@ -175,7 +178,7 @@ export function ModuleUpdatesModal({
             onClick={handleContinue}
             className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm gap-2 h-10 px-6 shadow-md shadow-emerald-950/20"
           >
-            <span>Continue to Module</span>
+            <span>Continue to Academy</span>
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

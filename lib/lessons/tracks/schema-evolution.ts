@@ -157,8 +157,9 @@ export const schemaEvolutionLessons: Lesson[] = [
         {
           id: "cp-at-1",
           title: "Add Contact Phone Attribute",
-          prompt: "Alter the `users` table by adding column `phone` (VARCHAR(20)).",
-          hint: "ALTER TABLE users ADD COLUMN phone VARCHAR(20);",
+          prompt:
+            "Westfield's identity security team is rolling out multi-factor authentication and requires capturing member mobile numbers. Execute an online schema evolution statement on the existing 'users' table to introduce a 'phone' attribute capable of storing contact strings up to 20 characters.",
+          hint: "Use ALTER TABLE paired with ADD COLUMN to evolve the live table schema without recreating existing records.",
           solutionSQL: "ALTER TABLE users ADD COLUMN phone VARCHAR(20);",
           validation: { type: "column_exists", table: "users", column: "phone" },
         },
@@ -166,8 +167,8 @@ export const schemaEvolutionLessons: Lesson[] = [
           id: "cp-at-2",
           title: "Add Temporal Audit Timestamp with Default",
           prompt:
-            "Alter the `users` table by adding column `created_at` with DEFAULT `(date('now'))`.",
-          hint: "ALTER TABLE users ADD COLUMN created_at TEXT DEFAULT (date('now'));",
+            "Compliance audits mandate tracking user account creation dates. Perform a second schema migration on 'users' to add a 'created_at' text column that automatically records the current calendar date by default whenever new accounts register.",
+          hint: "Supply a DEFAULT (date('now')) clause on the new column definition so preexisting rows automatically receive current timestamps.",
           solutionSQL: "ALTER TABLE users ADD COLUMN created_at TEXT DEFAULT (date('now'));",
           validation: { type: "column_exists", table: "users", column: "created_at" },
         },
@@ -348,8 +349,8 @@ export const schemaEvolutionLessons: Lesson[] = [
           id: "cp-cn-1",
           title: "Deploy Constrained Products Table",
           prompt:
-            "Create table `products` with: `id` (PK AUTOINCREMENT), `name` (NOT NULL), `sku` (UNIQUE), `price` (REAL), and `category_id` (INTEGER).",
-          hint: "CREATE TABLE products (id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(100) NOT NULL, sku VARCHAR(20) UNIQUE, price REAL, category_id INTEGER);",
+            "Westfield's e-commerce inventory system requires a strictly enforced relational table named 'products'. Design this schema with an auto-incrementing integer primary key, a non-null product name, a unique inventory SKU code up to 20 characters to eliminate duplicate catalog entries, a floating-point unit price, and an integer foreign key referencing the category hierarchy.",
+          hint: "Incorporate UNIQUE on the SKU attribute to enforce business uniqueness while designating id as PRIMARY KEY AUTOINCREMENT.",
           solutionSQL:
             "CREATE TABLE products (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name VARCHAR(100) NOT NULL,\n  sku VARCHAR(20) UNIQUE,\n  price REAL,\n  category_id INTEGER\n);",
           validation: { type: "table_exists", table: "products" },

@@ -598,10 +598,13 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         const lesson = getLessonBySlug(lessonSlug);
         lesson?.exercises?.forEach((ex) => {
           localStorage.removeItem(`mysql-academy-scenario-${ex.id}`);
+          localStorage.removeItem(`mysql-academy-scenario-reset-${ex.id}`);
           localStorage.removeItem(`mysql-academy-dragblock-${ex.id}`);
+          localStorage.removeItem(`mysql-academy-dragblock-reset-${ex.id}`);
         });
         if (lesson?.checkpointExam) {
           localStorage.removeItem(`mysql-academy-checkpoint-${lesson.checkpointExam.id}`);
+          localStorage.removeItem(`mysql-academy-checkpoint-reset-${lesson.checkpointExam.id}`);
         }
       } catch {}
     }
