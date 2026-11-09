@@ -170,7 +170,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Curriculum Roadmap Syllabus Tree ────────────────────────── */}
-      <section className="py-20 border-b border-border/50 bg-card/30">
+      <section id="curriculum" className="py-20 border-b border-border/50 bg-card/30 scroll-mt-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center space-y-3 mb-14">
             <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-xs px-3 py-1 font-mono">
