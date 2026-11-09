@@ -4,21 +4,16 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Lock,
-  Database,
   Sparkles,
-  ShieldCheck,
   CheckCircle2,
-  Terminal,
   ArrowRight,
   User,
   Mail,
-  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLessonStore } from "@/lib/store";
 import { isSupabaseConfigured, signInWithGoogle } from "@/lib/supabase";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 interface AuthBarrierProps {
   children: React.ReactNode;
@@ -37,7 +32,6 @@ export function AuthBarrier({
   const [isSigningInWithGoogle, setIsSigningInWithGoogle] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [showEmailForm, setShowEmailForm] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -56,8 +50,7 @@ export function AuthBarrier({
 
   const handleGoogleSignIn = async () => {
     if (!isSupabaseConfigured()) {
-      toast.info("Supabase is not configured for Google OAuth. You can use Quick Student Sign-In below.");
-      setShowEmailForm(true);
+      toast.info("Supabase is not configured for Google OAuth. You can sign in using your student email below.");
       return;
     }
 
@@ -91,17 +84,6 @@ export function AuthBarrier({
 
     setUser(studentUser);
     toast.success(`Welcome back, ${studentName}!`);
-  };
-
-  const handleDemoSignIn = () => {
-    const demoStudent = {
-      id: "student-demo-alex",
-      name: "Alex Rivera",
-      email: "alex.rivera@academy.edu",
-      avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Alex%20Rivera",
-    };
-    setUser(demoStudent);
-    toast.success("Signed in as Demo Student (Alex Rivera)!");
   };
 
   if (!mounted) {
@@ -190,78 +172,55 @@ export function AuthBarrier({
             <span>{isSigningInWithGoogle ? "Connecting to Google..." : "Continue with Google"}</span>
           </Button>
 
-          {/* Quick Email / Name Sign-In Accordion */}
-          {!showEmailForm ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowEmailForm(true)}
-              className="w-full text-xs font-mono h-9 gap-1.5 border-border"
-            >
-              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Sign in with Student Email / ID</span>
-            </Button>
-          ) : (
-            <form onSubmit={handleStudentLogin} className="space-y-2.5 pt-1 animate-in fade-in">
-              <div className="space-y-1">
-                <label className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Maya Chen"
-                  className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-emerald-500 font-sans"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  Student Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="student@university.edu"
-                  className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-emerald-500 font-sans"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold h-9 gap-1.5"
-              >
-                <span>Enter Academy Workspace</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </form>
-          )}
-
           {/* Divider */}
           <div className="relative py-1">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border/60" />
             </div>
             <div className="relative flex justify-center text-[10px] uppercase font-mono">
-              <span className="bg-card px-2 text-muted-foreground">or quick test</span>
+              <span className="bg-card px-2 text-muted-foreground">or sign in with student email</span>
             </div>
           </div>
 
-          {/* Demo Instant Login */}
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleDemoSignIn}
-            className="w-full text-xs font-mono h-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1.5"
-          >
-            <Flame className="h-3.5 w-3.5" />
-            <span>Continue as Demo Student (1-Click)</span>
-          </Button>
+          {/* Student Email Form */}
+          <form onSubmit={handleStudentLogin} className="space-y-3 pt-1">
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                <User className="h-3 w-3" />
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Jordan Miller"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-emerald-500 font-sans"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                Student Email <span className="text-emerald-500">*</span>
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="student@university.edu"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-emerald-500 font-sans"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold h-9 gap-1.5 shadow-sm"
+            >
+              <span>Sign In to Academy Workspace</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </form>
         </div>
 
         {/* Back Link */}
