@@ -29,6 +29,8 @@ import { LabTasksSidebar } from "@/components/lesson/LabTasksSidebar";
 import { CurriculumSidebar } from "@/components/lesson/CurriculumSidebar";
 import { SchemaViewer } from "@/components/lesson/SchemaViewer";
 import { HintPanel } from "@/components/lesson/HintPanel";
+import { AuthBarrier } from "@/components/auth/AuthBarrier";
+import { ModuleUpdatesModal } from "@/components/lesson/ModuleUpdatesModal";
 import SQLTerminal from "@/components/terminal/SQLTerminal";
 import {
   getLessonBySlug,
@@ -79,6 +81,22 @@ export default function LessonWorkspacePage() {
   const [activeTab, setActiveTab] = useState<"terminal" | "schema">("terminal");
   const [isResetting, setIsResetting] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showUpdates, setShowUpdates] = useState(false);
+
+  // Require user to see updates before continuing the module
+  useEffect(() => {
+    if (!lesson) return;
+    if (typeof window !== "undefined") {
+      const seen = localStorage.getItem(`mysql-academy-seen-updates-${lesson.slug}`);
+      if (seen !== "true") {
+        setShowUpdates(true);
+      }
+    }
+  }, [lesson?.slug, lesson]);
+
+  const handleDismissUpdates = () => {
+    setShowUpdates(false);
+  };
 
   // Auto-expand sidebar on larger desktop monitors
   useEffect(() => {
@@ -239,7 +257,19 @@ export default function LessonWorkspacePage() {
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <Header />
 
-      {/* ── Subheader with Mode Switcher Bar ────────────────────────── */}
+      <AuthBarrier
+        title="Student Sign-In Required"
+        description={`Please sign in to access "${lesson.title}", run queries in the interactive database sandbox, and save your progress.`}
+      >
+        {/* Module Updates Interstitial Modal (User must see updates before continuing module) */}
+        <ModuleUpdatesModal
+          lesson={lesson}
+          isOpen={showUpdates}
+          onContinue={handleDismissUpdates}
+          onClose={() => setShowUpdates(false)}
+        />
+
+        {/* ── Subheader with Mode Switcher Bar ────────────────────────── */}
       <div className="h-11 border-b border-border bg-card/60 backdrop-blur px-3 sm:px-4 flex items-center justify-between gap-4 shrink-0">
         {/* Left: Sidebar Toggle & Lesson Breadcrumb */}
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -331,6 +361,18 @@ export default function LessonWorkspacePage() {
             <span>{isCompleted ? "Completed" : "Mark as Done"}</span>
           </Button>
 
+          {/* Module Updates Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowUpdates(true)}
+            className="h-7 px-2 text-xs gap-1 border-border text-muted-foreground hover:text-foreground shrink-0"
+            title="Review updates and release notes for this module"
+          >
+            <Sparkles className="h-3 w-3 text-emerald-400" />
+            <span className="hidden sm:inline">Updates</span>
+          </Button>
+
           {/* Reset DB Button in Lab Mode */}
           {viewMode === "lab" && (
             <Button
@@ -379,6 +421,7 @@ export default function LessonWorkspacePage() {
           )}
         </div>
       </div>
-    </div>
-  );
+    </AuthBarrier>
+  </div>
+);
 }

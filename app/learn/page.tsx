@@ -20,6 +20,7 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { AuthBarrier } from "@/components/auth/AuthBarrier";
 import { TRACKS, LESSONS, getLessonsForTrack } from "@/lib/lessons";
 import { useLessonStore } from "@/lib/store";
 
@@ -64,7 +65,11 @@ export default function LearnDashboardPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-10">
+      <AuthBarrier
+        title="Student Sign-In Required"
+        description="Please sign in to access the MySQL curriculum dashboard and track your progress across all specialized tracks."
+      >
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-10">
         {/* ── Top Header & Stats Card ────────────────────────────────── */}
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -237,6 +242,7 @@ export default function LearnDashboardPage() {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </AuthBarrier>
+  </div>
+);
 }

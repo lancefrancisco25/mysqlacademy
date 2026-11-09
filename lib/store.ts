@@ -267,11 +267,31 @@ export const useLessonStore = create<LessonState>((set, get) => ({
   lastCloudSync: null,
 
   setUser: (user: StudentUser | null) => {
+    if (typeof window !== "undefined") {
+      try {
+        if (user) {
+          localStorage.setItem("mysql-academy-student-user", JSON.stringify(user));
+        } else {
+          localStorage.removeItem("mysql-academy-student-user");
+        }
+      } catch {}
+    }
     set({ user });
   },
 
   initAuth: () => {
     if (typeof window === "undefined") return () => {};
+
+    // Rehydrate local student user immediately
+    try {
+      const stored = localStorage.getItem("mysql-academy-student-user");
+      if (stored) {
+        const student = JSON.parse(stored);
+        if (student?.id) {
+          set({ user: student });
+        }
+      }
+    } catch {}
 
     if (!isSupabaseConfigured()) {
       set({ cloudSyncStatus: "unconfigured" });
@@ -291,7 +311,10 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         set({ user: student });
         get().syncWithCloud();
       } else {
-        set({ user: null, cloudSyncStatus: "offline" });
+        const current = get().user;
+        if (!current) {
+          set({ user: null, cloudSyncStatus: "offline" });
+        }
       }
     });
 
@@ -304,7 +327,10 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         set({ user: student });
         await get().syncWithCloud();
       } else {
-        set({ user: null, cloudSyncStatus: "offline" });
+        const current = get().user;
+        if (!current) {
+          set({ user: null, cloudSyncStatus: "offline" });
+        }
       }
     });
 
