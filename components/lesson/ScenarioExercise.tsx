@@ -47,6 +47,8 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const [showSolution, setShowSolution] = useState(false);
   const [copiedSolution, setCopiedSolution] = useState(false);
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
+  const [isResettingTerminal, setIsResettingTerminal] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
   const [tablePreview, setTablePreview] = useState<{
     tableName?: string;
     description?: string;
@@ -55,12 +57,29 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   } | null>(exercise.previewTable || null);
 
   // Ensure tables are up when exercise loads or db becomes ready
+  // and rehydrate persisted completion even across page refreshes
   useEffect(() => {
-    setSqlCode(exercise.starterSQL || "");
+    let savedState: { completed?: boolean; completedRequirements?: string[]; code?: string } | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-scenario-${exercise.id}`);
+        if (raw) savedState = JSON.parse(raw);
+      } catch {}
+    }
+
+    if (savedState?.completed) {
+      setCompletedRequirements(savedState.completedRequirements || exercise.requirements.map((r) => r.id));
+      if (savedState.code) setSqlCode(savedState.code);
+      setShowSolution(true);
+    } else {
+      setSqlCode(exercise.starterSQL || "");
+      setCompletedRequirements([]);
+      setShowSolution(false);
+    }
+
     setExecutionOutput(null);
-    setCompletedRequirements([]);
-    setShowSolution(false);
     setOpenHints({});
+    setResetNotice(null);
 
     if (exercise.previewTable) {
       setTablePreview(exercise.previewTable);
@@ -93,7 +112,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         console.warn("[Scenario] Initial schema setup notice:", err);
       }
     }
-  }, [exercise.id, exercise.starterSQL, exercise.previewTable, dbReady, executeQuery, exercise.schemaSetupSQL]);
+  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, dbReady, executeQuery, exercise.schemaSetupSQL]);
 
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
@@ -224,6 +243,24 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
 
       setCompletedRequirements(satisfied);
 
+      // Persist completion and auto-reveal solution even across page refreshes
+      if (satisfied.length === exercise.requirements.length) {
+        setShowSolution(true);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(
+              `mysql-academy-scenario-${exercise.id}`,
+              JSON.stringify({
+                completed: true,
+                completedRequirements: satisfied,
+                code: sqlCode,
+                completedAt: Date.now(),
+              })
+            );
+          } catch {}
+        }
+      }
+
       if (runtimeError) {
         // If there was a runtime error but student's syntax satisfied requirements:
         if (satisfied.length === exercise.requirements.length) {
@@ -272,11 +309,38 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
     setSqlCode(exercise.solutionSQL);
   };
 
+  const handleResetTerminal = async () => {
+    setIsResettingTerminal(true);
+    try {
+      rollbackIfInTransaction();
+      if (currentLesson?.seedSQL) {
+        await resetDB(currentLesson.seedSQL);
+      }
+      if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
+        executeQuery(exercise.schemaSetupSQL);
+      }
+      setExecutionOutput(null);
+      setResetNotice("✓ Scenario terminal and database sandbox reset to clean initial state!");
+      setTimeout(() => setResetNotice(null), 3500);
+    } catch (err: any) {
+      console.warn("[Scenario] Reset terminal error:", err);
+    } finally {
+      setIsResettingTerminal(false);
+    }
+  };
+
   const handleResetCode = async () => {
     rollbackIfInTransaction();
     setSqlCode(exercise.starterSQL || "");
     setExecutionOutput(null);
     setCompletedRequirements([]);
+    setShowSolution(false);
+    setResetNotice(null);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`mysql-academy-scenario-${exercise.id}`);
+      } catch {}
+    }
     if (currentLesson?.seedSQL) {
       try {
         await resetDB(currentLesson.seedSQL);
@@ -431,9 +495,78 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         </div>
 
         {isAllComplete && (
-          <div className="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-500/40 bg-emerald-500/15 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm font-semibold animate-in fade-in">
-            <Trophy className="h-4 w-4 text-emerald-500 shrink-0" />
-            <span>Architecture Blueprint Verified: All {exercise.requirements.length} requirements successfully passed!</span>
+          <div className="rounded-xl border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent p-4 sm:p-5 space-y-4 animate-in fade-in shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm shadow-emerald-500/30">
+                  <Trophy className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm sm:text-base font-bold text-foreground">
+                    Scenario Blueprint Verified &amp; Mastered!
+                  </h4>
+                  <p className="text-xs text-muted-foreground font-sans">
+                    All {exercise.requirements.length} requirements passed. Review the canonical answer below and reset the terminal.
+                  </p>
+                </div>
+              </div>
+
+              {/* Reset Terminal Action Button */}
+              <Button
+                type="button"
+                onClick={handleResetTerminal}
+                disabled={isResettingTerminal}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-mono font-bold shrink-0 shadow-sm"
+              >
+                <RotateCcw className={cn("h-3.5 w-3.5", isResettingTerminal && "animate-spin")} />
+                Reset Scenario Terminal
+              </Button>
+            </div>
+
+            {resetNotice && (
+              <div className="p-2.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-xs font-mono text-sky-900 dark:text-sky-200 flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="h-4 w-4 text-sky-500 shrink-0" />
+                <span>{resetNotice}</span>
+              </div>
+            )}
+
+            {/* Official Reference Solution (Right Answer) */}
+            <div className="pt-3 border-t border-emerald-500/25 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Official Reference Blueprint (Right Answer)
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLoadSolution}
+                    className="h-6 text-[10px] font-mono gap-1"
+                  >
+                    Insert to Editor
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopySolution}
+                    className="h-6 text-[10px] font-mono gap-1"
+                  >
+                    {copiedSolution ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copiedSolution ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+
+              <pre className="p-3.5 rounded-lg border border-zinc-800 bg-[#0c0d11] font-mono text-xs text-emerald-400 overflow-x-auto">
+                <code>{exercise.solutionSQL}</code>
+              </pre>
+
+              <p className="text-xs text-muted-foreground leading-relaxed font-sans pt-0.5">
+                💡 <strong className="text-foreground">Why this design works:</strong>{" "}
+                {exercise.solutionExplanation}
+              </p>
+            </div>
           </div>
         )}
       </div>

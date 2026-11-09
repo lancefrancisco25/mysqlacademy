@@ -39,6 +39,11 @@ export function CheckpointExam({
   onOpenLab,
 }: CheckpointExamProps) {
   const executeQuery = useLessonStore((s) => s.executeQuery);
+  const resetDB = useLessonStore((s) => s.resetDB);
+  const currentLesson = useLessonStore((s) => s.currentLesson);
+
+  const [isResettingDB, setIsResettingDB] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
 
   // Per-question state: code input, status (passed / failed / null), feedback message
   const [questionStates, setQuestionStates] = useState<
@@ -56,7 +61,7 @@ export function CheckpointExam({
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
       initial[q.id] = {
-        code: "", // Hidden by default - student must write their own SQL
+        code: "",
         passed: false,
         feedback: undefined,
         showHint: false,
@@ -66,16 +71,24 @@ export function CheckpointExam({
     return initial;
   });
 
-  // Reset/sync question states whenever exam changes
+  // Rehydrate persisted checkpoint state across page refreshes
   useEffect(() => {
+    let saved: any = null;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-checkpoint-${exam.id}`);
+        if (raw) saved = JSON.parse(raw);
+      } catch {}
+    }
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
+      const isPassed = saved?.passedQuestionIds?.includes(q.id) || false;
       initial[q.id] = {
-        code: "",
-        passed: false,
-        feedback: undefined,
+        code: saved?.codes?.[q.id] || "",
+        passed: isPassed,
+        feedback: isPassed ? "✓ Checkpoint Passed! Output meets required specification." : undefined,
         showHint: false,
-        showSolution: false,
+        showSolution: isPassed, // Auto-reveal reference solution if passed
       };
     });
     setQuestionStates(initial);
@@ -130,14 +143,35 @@ export function CheckpointExam({
       const valResult = validateTask(mockTask, currentCode, result);
 
       if (valResult.passed) {
-        setQuestionStates((prev) => ({
-          ...prev,
-          [q.id]: {
-            ...prev[q.id],
-            passed: true,
-            feedback: "✓ Checkpoint Passed! Output meets required specification.",
-          },
-        }));
+        setQuestionStates((prev) => {
+          const next = {
+            ...prev,
+            [q.id]: {
+              ...prev[q.id],
+              passed: true,
+              feedback: "✓ Checkpoint Passed! Output meets required specification.",
+              showSolution: true,
+            },
+          };
+          if (typeof window !== "undefined") {
+            try {
+              const passedIds = exam.questions.filter((item) => next[item.id]?.passed).map((item) => item.id);
+              const codes: Record<string, string> = {};
+              exam.questions.forEach((item) => {
+                codes[item.id] = next[item.id]?.code || "";
+              });
+              localStorage.setItem(
+                `mysql-academy-checkpoint-${exam.id}`,
+                JSON.stringify({
+                  passedQuestionIds: passedIds,
+                  codes,
+                  completed: passedIds.length === exam.questions.length,
+                })
+              );
+            } catch {}
+          }
+          return next;
+        });
       } else {
         setQuestionStates((prev) => ({
           ...prev,
@@ -157,6 +191,22 @@ export function CheckpointExam({
           feedback: `MySQL Execution Error: ${err.message || "Unknown error"}`,
         },
       }));
+    }
+  };
+
+  const handleResetDatabase = async () => {
+    setIsResettingDB(true);
+    try {
+      rollbackIfInTransaction();
+      if (currentLesson?.seedSQL) {
+        await resetDB(currentLesson.seedSQL);
+      }
+      setResetNotice("✓ Database sandbox reset to initial lesson seed state!");
+      setTimeout(() => setResetNotice(null), 3500);
+    } catch (err: any) {
+      console.warn("[Checkpoint] Reset DB error:", err);
+    } finally {
+      setIsResettingDB(false);
     }
   };
 
@@ -383,7 +433,7 @@ export function CheckpointExam({
 
       {/* Final Celebration Banner when all passed */}
       {isAllPassed && (
-        <div className="rounded-2xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent p-6 sm:p-8 text-center space-y-4 animate-in zoom-in-95">
+        <div className="rounded-2xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent p-6 sm:p-8 text-center space-y-5 animate-in zoom-in-95">
           <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30 text-2xl">
             🏆
           </div>
@@ -393,20 +443,38 @@ export function CheckpointExam({
               Checkpoint Mastered!
             </h4>
             <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              You&apos;ve proven your SQL fluency by passing all checkpoint tasks with 100% precision. You are ready for the next level!
+              You&apos;ve proven your SQL fluency by passing all checkpoint tasks with 100% precision. Review the canonical answers above and reset your terminal before advancing!
             </p>
           </div>
 
-          {nextLessonSlug && (
-            <div className="pt-2">
+          {resetNotice && (
+            <div className="max-w-md mx-auto p-2.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-xs font-mono text-sky-900 dark:text-sky-200 flex items-center justify-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="h-4 w-4 text-sky-500 shrink-0" />
+              <span>{resetNotice}</span>
+            </div>
+          )}
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              type="button"
+              onClick={handleResetDatabase}
+              disabled={isResettingDB}
+              variant="outline"
+              className="border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-xs gap-1.5"
+            >
+              <RotateCcw className={cn("h-3.5 w-3.5", isResettingDB && "animate-spin")} />
+              Reset Database Sandbox
+            </Button>
+
+            {nextLessonSlug && (
               <Link href={`/learn/${nextLessonSlug}`}>
                 <Button className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold gap-2 shadow-lg shadow-emerald-950/20">
                   Advance to Next Lesson: {nextLessonTitle}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

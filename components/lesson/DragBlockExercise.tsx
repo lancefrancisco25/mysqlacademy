@@ -35,13 +35,30 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
   const [showHint, setShowHint] = useState(false);
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
 
-  // Sync / reset when navigating to another exercise
+  // Sync / reset when navigating to another exercise and rehydrate persisted completion
   useEffect(() => {
-    setAvailableBlocks([...exercise.blocks].sort(() => 0.5 - Math.random()));
-    setPlacedBlocks([]);
-    setStatus(null);
+    let saved: any = null;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
+        if (raw) saved = JSON.parse(raw);
+      } catch {}
+    }
+
+    if (saved?.completed) {
+      const solved = exercise.solution
+        .map((id) => exercise.blocks.find((b) => b.id === id))
+        .filter(Boolean) as DragBlock[];
+      setPlacedBlocks(solved);
+      setAvailableBlocks([]);
+      setStatus("correct");
+    } else {
+      setAvailableBlocks([...exercise.blocks].sort(() => 0.5 - Math.random()));
+      setPlacedBlocks([]);
+      setStatus(null);
+    }
     setShowHint(false);
-  }, [exercise.id, exercise.blocks]);
+  }, [exercise.id, exercise.blocks, exercise.solution]);
 
   // Click to place block from available into placed
   const handleAddBlock = (block: DragBlock) => {
@@ -63,6 +80,11 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
     setPlacedBlocks([]);
     setStatus(null);
     setShowHint(false);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`mysql-academy-dragblock-${exercise.id}`);
+      } catch {}
+    }
   };
 
   // Drag and drop handlers
@@ -104,6 +126,14 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       currentOrder.every((id, idx) => id === exercise.solution[idx]);
 
     setStatus(isCorrect ? "correct" : "incorrect");
+    if (isCorrect && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-dragblock-${exercise.id}`,
+          JSON.stringify({ completed: true })
+        );
+      } catch {}
+    }
   };
 
   // Formatted SQL preview

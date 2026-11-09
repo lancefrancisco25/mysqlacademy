@@ -281,17 +281,59 @@ export function LabTasksSidebar({
             )}
           </div>
 
-          {/* Objective Auto-check Status */}
+          {/* Objective Auto-check Status & Right Answer / Reset Terminal */}
           {completedCount === lesson.tasks.length && lesson.tasks.length > 0 ? (
-            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 text-xs">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <div className="font-semibold text-emerald-700 dark:text-emerald-300">
-                  Target Criteria Fully Satisfied!
+            <div className="space-y-3">
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 text-xs">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                    Target Criteria Fully Satisfied!
+                  </div>
+                  <div className="text-[11px] text-emerald-800 dark:text-emerald-300/90 font-sans leading-relaxed">
+                    All {lesson.tasks.length} lab tasks have been executed and validated against the live database engine. The final objective is verified.
+                  </div>
                 </div>
-                <div className="text-[11px] text-emerald-800 dark:text-emerald-300/90 font-sans leading-relaxed">
-                  All {lesson.tasks.length} lab tasks have been executed and validated against the live database engine. The final objective is verified.
+              </div>
+
+              {/* Right Answers: Canonical Verified SQL */}
+              <div className="p-3 rounded-lg bg-card/95 border border-emerald-500/30 space-y-2 text-xs">
+                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3" />
+                  <span>Canonical SQL Solutions (Right Answers)</span>
                 </div>
+                <div className="space-y-2 font-mono">
+                  {lesson.tasks.map((t, idx) => (
+                    <div key={t.id} className="space-y-1 bg-muted/40 p-2 rounded border border-border/60">
+                      <div className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                        <span>Task {idx + 1}: {t.title}</span>
+                        <span className="text-[10px] text-emerald-500 font-bold">✓ Mastered</span>
+                      </div>
+                      {t.hint && (
+                        <pre className="p-1.5 rounded bg-[#0c0d11] text-emerald-400 text-[11px] overflow-x-auto border border-zinc-800">
+                          <code>{t.hint}</code>
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Prompt to Reset Terminal */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-2">
+                <div className="text-[11px] text-muted-foreground font-sans leading-relaxed">
+                  💡 <strong className="text-foreground">Done with this lab?</strong> Reset the interactive terminal sandbox to restore clean initial seed tables before practicing new queries:
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onResetDB}
+                  disabled={isResetting}
+                  className="w-full h-8 text-xs font-mono font-bold gap-2 border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shadow-xs"
+                >
+                  <RotateCcw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
+                  Reset Terminal Database Sandbox
+                </Button>
               </div>
             </div>
           ) : (

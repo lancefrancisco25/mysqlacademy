@@ -46,6 +46,38 @@ export function ConceptPrimer({
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasAnswered, setHasAnswered] = useState(false);
 
+  // Rehydrate intuition check selection across page refreshes
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(`mysql-academy-intuition-${lesson.slug}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed?.selectedOption === "number") {
+            setSelectedOption(parsed.selectedOption);
+            setHasAnswered(true);
+            return;
+          }
+        }
+      } catch {}
+    }
+    setSelectedOption(null);
+    setHasAnswered(false);
+  }, [lesson.slug]);
+
+  const handleSelectIntuitionOption = (idx: number) => {
+    setSelectedOption(idx);
+    setHasAnswered(true);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-intuition-${lesson.slug}`,
+          JSON.stringify({ selectedOption: idx })
+        );
+      } catch {}
+    }
+  };
+
   const handleCopy = (code: string, idx: number) => {
     navigator.clipboard.writeText(code);
     setCopiedIndex(idx);
@@ -302,10 +334,7 @@ export function ConceptPrimer({
                   <button
                     key={i}
                     disabled={hasAnswered}
-                    onClick={() => {
-                      setSelectedOption(i);
-                      setHasAnswered(true);
-                    }}
+                    onClick={() => handleSelectIntuitionOption(i)}
                     className={cn(
                       "w-full text-left p-3 rounded-lg border transition-all flex items-center justify-between shadow-xs",
                       stateClass
