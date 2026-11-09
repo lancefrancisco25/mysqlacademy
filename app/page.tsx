@@ -96,9 +96,12 @@ export default function HomePage() {
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link href="/learn/create-database">
-              <Button size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-medium shadow-lg shadow-emerald-950/20">
-                Start Learning Path
-                <ArrowRight className="h-4 w-4" />
+              <Button
+                size="lg"
+                className="group relative inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold tracking-tight border border-emerald-500/40 dark:border-emerald-400/30 shadow-sm hover:shadow-md hover:shadow-emerald-950/20 transition-all duration-150 ease-out active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <span>Start Learning</span>
+                <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-active:translate-x-1" />
               </Button>
             </Link>
             <Link href="/learn">
