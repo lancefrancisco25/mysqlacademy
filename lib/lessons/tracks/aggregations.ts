@@ -168,7 +168,7 @@ export const aggregationsLessons: Lesson[] = [
           solutionSQL: "SELECT COUNT(*), SUM(amount) FROM sales;",
           validation: {
             type: "query_result",
-            queryPattern: /SELECT.*(COUNT|SUM).*FROM\s+sales/i,
+            queryPattern: /SELECT[\s\S]*(COUNT|SUM)[\s\S]*FROM\s+sales/i,
             query: "SELECT COUNT(*), SUM(amount) FROM sales",
             expectedResult: [[12, 15500]],
           },
@@ -185,9 +185,22 @@ export const aggregationsLessons: Lesson[] = [
         hint: "SELECT COUNT(*), SUM(amount) FROM sales;",
         validation: {
           type: "query_result",
-          queryPattern: /SELECT.*(COUNT|SUM).*FROM\s+sales/i,
+          queryPattern: /SELECT[\s\S]*(COUNT|SUM)[\s\S]*FROM\s+sales/i,
           query: "SELECT COUNT(*), SUM(amount) FROM sales",
           expectedResult: [[12, 15500]],
+        },
+      },
+      {
+        id: "af-2",
+        title: "Calculate average deal revenue",
+        description:
+          "Run a query calculating AVG(amount) as avg_sale from the sales table.",
+        hint: "SELECT AVG(amount) FROM sales;",
+        validation: {
+          type: "query_result",
+          queryPattern: /SELECT[\s\S]*AVG[\s\S]*FROM\s+sales/i,
+          query: "SELECT AVG(amount) FROM sales",
+          minReturnedRows: 1,
         },
       },
     ],

@@ -115,7 +115,7 @@ const SEEDS: Record<string, string> = {
       ('Carol', 'East', 'Gadget', 1500.00, '2024-02-01'),
       ('Carol', 'East', 'Device', 2200.00, '2024-02-15'),
       ('Alice', 'North', 'Device', 1800.00, '2024-02-20'),
-      ('Bob', 'South', 'Gadget', 650.00, '2024-03-01'),
+      ('Bob', 'South', 'Gadget', 700.00, '2024-03-01'),
       ('David', 'West', 'Widget', 1350.00, '2024-03-05'),
       ('David', 'West', 'Gadget', 900.00, '2024-03-10'),
       ('Carol', 'East', 'Widget', 1050.00, '2024-03-15'),
