@@ -227,7 +227,7 @@ export function CloudSetupModal({ isOpen, onClose }: CloudSetupModalProps) {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground pl-8">
-              Copy your Project URL and Anon API key from{" "}
+              Copy your Project URL and Publishable (anon) API key from{" "}
               <span className="font-mono text-foreground font-medium bg-muted px-1.5 py-0.5 rounded">
                 Project Settings &gt; API
               </span>{" "}

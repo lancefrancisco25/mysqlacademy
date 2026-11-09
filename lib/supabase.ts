@@ -2,14 +2,18 @@ import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
 import type { LessonProgress, StudentUser } from "@/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
     supabaseUrl &&
       supabaseAnonKey &&
       supabaseUrl !== "https://your-project-id.supabase.co" &&
-      !supabaseUrl.includes("placeholder")
+      !supabaseUrl.includes("placeholder") &&
+      !supabaseAnonKey.includes("PASTE_") &&
+      !supabaseAnonKey.includes("placeholder")
   );
 };
 
