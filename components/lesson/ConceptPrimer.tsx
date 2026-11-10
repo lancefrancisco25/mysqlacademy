@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DragBlockExercise } from "./DragBlockExercise";
 import { ScenarioExercise } from "./ScenarioExercise";
+import { SyntaxDrillSection } from "./SyntaxDrillSection";
 import { CheckpointExam } from "./CheckpointExam";
 import type { Lesson, TrackInfo } from "@/types";
 import { cn } from "@/lib/utils";
@@ -399,7 +400,15 @@ export function ConceptPrimer({
           </div>
         )}
 
-        {/* ── 9. Final Lesson Checkpoint Exam ───────────────────────── */}
+        {/* ── 9. Situational Syntax Drills (Pure Syntax Verification) ─ */}
+        {lesson.syntaxDrills && lesson.syntaxDrills.length > 0 && (
+          <SyntaxDrillSection
+            lessonSlug={lesson.slug}
+            drills={lesson.syntaxDrills}
+          />
+        )}
+
+        {/* ── 10. Final Lesson Checkpoint Exam ───────────────────────── */}
         {lesson.checkpointExam && (
           <CheckpointExam
             exam={lesson.checkpointExam}

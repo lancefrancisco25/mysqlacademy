@@ -128,6 +128,22 @@ export interface ScenarioExercise {
 
 export type LessonExercise = DragBlockExercise | ScenarioExercise;
 
+// ─── Situational Syntax Drills ────────────────────────────────────────────
+
+export interface SyntaxDrillItem {
+  id: string;
+  title: string;
+  scenario: string; // short situational context
+  instruction: string; // concise syntax task
+  starterSQL?: string;
+  solutionSQL: string;
+  hint: string;
+  syntaxPattern?: RegExp | string;
+  validationQuery?: string;
+  expectedResult?: (string | number | null)[][];
+  categoryTag?: string; // e.g. "Special Operators", "Wildcards", "Aliases", "Views", "Set Operations"
+}
+
 // ─── Checkpoint Exam ──────────────────────────────────────────────────────
 
 export interface CheckpointQuestion {
@@ -166,6 +182,7 @@ export interface Lesson {
   diagramType?: "pipeline" | "join" | "relations" | "btree" | "transactions";
   intuitionCheck?: IntuitionCheck;
   exercises?: LessonExercise[];
+  syntaxDrills?: SyntaxDrillItem[];
   checkpointExam?: CheckpointExam;
   finalObjective?: {
     title: string;

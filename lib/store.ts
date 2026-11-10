@@ -574,6 +574,21 @@ export const useLessonStore = create<LessonState>((set, get) => ({
             JSON.stringify({ selectedOption: lesson.intuitionCheck.correctIndex })
           );
         }
+        // Pre-fill syntax drills if exists
+        if (lesson.syntaxDrills && lesson.syntaxDrills.length > 0) {
+          const drillCodes: Record<string, string> = {};
+          lesson.syntaxDrills.forEach((d) => {
+            drillCodes[d.id] = d.solutionSQL;
+          });
+          localStorage.setItem(
+            `mysql-academy-drills-${lessonSlug}`,
+            JSON.stringify({
+              passedIds: lesson.syntaxDrills.map((d) => d.id),
+              codes: drillCodes,
+              completed: true,
+            })
+          );
+        }
       } catch {}
     }
     set({ progress: updatedProgress });
@@ -606,6 +621,8 @@ export const useLessonStore = create<LessonState>((set, get) => ({
           localStorage.removeItem(`mysql-academy-checkpoint-${lesson.checkpointExam.id}`);
           localStorage.removeItem(`mysql-academy-checkpoint-reset-${lesson.checkpointExam.id}`);
         }
+        localStorage.removeItem(`mysql-academy-drills-${lessonSlug}`);
+        localStorage.removeItem(`mysql-academy-drills-reset-${lessonSlug}`);
       } catch {}
     }
     set({ progress: updatedProgress });

@@ -52,6 +52,21 @@ const SEEDS: Record<string, string> = {
       ('Henry', 'Moore', 'HR', 70000, '2021-04-18', 1),
       ('Ivy', 'Taylor', 'Engineering', 112000, '2017-08-22', 1),
       ('Jack', 'Anderson', 'HR', 58000, '2023-01-09', 1);
+
+    CREATE TABLE students (
+      stu_num INTEGER PRIMARY KEY,
+      stu_name VARCHAR(50) NOT NULL,
+      course VARCHAR(10) NOT NULL,
+      units INTEGER NOT NULL,
+      contact_no VARCHAR(20)
+    );
+    INSERT INTO students (stu_num, stu_name, course, units, contact_no) VALUES
+      (101, 'Ky', 'CS', 21, '0915-11-06'),
+      (102, 'Airus', 'IT', 24, '0922-24-12'),
+      (103, 'Alex', 'CS', 18, '0916-42-84'),
+      (104, 'Ethan', 'IT', 21, '0932-61-92'),
+      (105, 'Ara', 'IS', 18, NULL),
+      (106, 'Jo', 'CS', 21, '0917-5501');
   `,
 
   "where-clauses": `
@@ -75,6 +90,21 @@ const SEEDS: Record<string, string> = {
       ('Frank Miller', 'Tablet', 1, 499.99, '2024-03-01', 'pending'),
       ('Grace Wilson', 'Phone Case', 5, 19.99, '2024-03-05', 'completed'),
       ('Henry Moore', 'USB Cable', 10, 9.99, '2024-03-10', 'completed');
+
+    CREATE TABLE students (
+      stu_num INTEGER PRIMARY KEY,
+      stu_name VARCHAR(50) NOT NULL,
+      course VARCHAR(10) NOT NULL,
+      units INTEGER NOT NULL,
+      contact_no VARCHAR(20)
+    );
+    INSERT INTO students (stu_num, stu_name, course, units, contact_no) VALUES
+      (101, 'Ky', 'CS', 21, '0915-11-06'),
+      (102, 'Airus', 'IT', 24, '0922-24-12'),
+      (103, 'Alex', 'CS', 18, '0916-42-84'),
+      (104, 'Ethan', 'IT', 21, '0932-61-92'),
+      (105, 'Ara', 'IS', 18, NULL),
+      (106, 'Jo', 'CS', 21, '0917-5501');
   `,
 
   "update-delete": `
@@ -241,6 +271,41 @@ const SEEDS: Record<string, string> = {
       (5, 8, 399.92, '2024-02-15'),
       (6, 2, 1199.98, '2024-03-01'),
       (2, 15, 449.85, '2024-03-05');
+
+    CREATE TABLE class_a (
+      stu_num INTEGER PRIMARY KEY,
+      stu_name VARCHAR(50) NOT NULL,
+      units INTEGER NOT NULL
+    );
+    INSERT INTO class_a (stu_num, stu_name, units) VALUES
+      (101, 'Ky', 21),
+      (102, 'Airus', 24),
+      (103, 'Alex', 18);
+
+    CREATE TABLE class_b (
+      stu_num INTEGER PRIMARY KEY,
+      stu_name VARCHAR(50) NOT NULL,
+      units INTEGER NOT NULL
+    );
+    INSERT INTO class_b (stu_num, stu_name, units) VALUES
+      (103, 'Alex', 18),
+      (104, 'Ethan', 21),
+      (105, 'Cedric', 15);
+
+    CREATE TABLE movies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title VARCHAR(100) NOT NULL,
+      year INTEGER NOT NULL,
+      length INTEGER,
+      in_color VARCHAR(10) DEFAULT 'TRUE',
+      studio_name VARCHAR(50) NOT NULL
+    );
+    INSERT INTO movies (title, year, length, in_color, studio_name) VALUES
+      ('Gone With the Wind', 1939, 238, 'TRUE', 'MGM'),
+      ('Star Trek: The Motion Picture', 1979, 132, 'TRUE', 'Paramount'),
+      ('Star Trek: The Movie', 1978, 125, 'TRUE', 'Paramount'),
+      ('The Godfather', 1972, 175, 'TRUE', 'Paramount'),
+      ('Star Wars', 1977, 121, 'TRUE', 'Fox');
   `,
 
   // ── Schema Evolution ────────────────────────────────────────────────

@@ -150,7 +150,7 @@ export function getTableNames(): string[] {
   if (!db) return [];
   try {
     const result = db.exec(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+      "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
     );
     if (result.length === 0) return [];
     return result[0].values.map((row: any) => String(row[0]));

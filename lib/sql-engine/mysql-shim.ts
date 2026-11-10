@@ -31,10 +31,10 @@ export function translateMySQL(
     };
   }
 
-  // SHOW TABLES
+  // SHOW TABLES (includes base tables and views like MySQL)
   if (/^SHOW\s+TABLES\s*;?$/i.test(trimmed)) {
     const result = db.exec(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+      "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
     );
     const tables =
       result.length > 0
