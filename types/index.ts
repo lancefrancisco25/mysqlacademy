@@ -229,6 +229,24 @@ export interface LessonProgress {
   lessonSlug: string;
   completedTaskIds: string[];
   lastAccessed: number;
+  /** Overall lesson completion flag */
+  isCompleted?: boolean;
+  /** IDs of passed situational syntax drills */
+  completedDrillIds?: string[];
+  /** Saved user code per syntax drill ID */
+  drillCodes?: Record<string, string>;
+  /** IDs of passed checkpoint exam questions */
+  checkpointPassedIds?: string[];
+  /** Saved user code per checkpoint question ID */
+  checkpointCodes?: Record<string, string>;
+  /** Whether the scenario exercise was completed */
+  scenarioCompleted?: boolean;
+  /** Saved user code for the scenario exercise */
+  scenarioCode?: string;
+  /** IDs of satisfied scenario requirements */
+  scenarioCompletedRequirements?: string[];
+  /** Whether the drag block exercise was completed */
+  dragBlockCompleted?: boolean;
 }
 
 // ─── Student Authentication & Cloud Sync ───────────────────────────────────

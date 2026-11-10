@@ -25,6 +25,8 @@ interface DragBlockExerciseProps {
 export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
   const currentLesson = useLessonStore((s) => s.currentLesson);
   const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const saveDragBlockProgress = useLessonStore((s) => s.saveDragBlockProgress);
+  const lessonProg = useLessonStore((s) => (currentLesson ? s.progress[currentLesson.slug] : undefined));
   const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   // Available blocks not yet placed in the assembled sequence
@@ -85,7 +87,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       } catch {}
     }
 
-    if (!isExplicitlyReset && (saved?.completed || isLessonDone)) {
+    if (!isExplicitlyReset && (saved?.completed || lessonProg?.dragBlockCompleted || isLessonDone)) {
       const solved = exercise.solution
         .map((id) => exercise.blocks.find((b) => b.id === id))
         .filter(Boolean) as DragBlock[];
@@ -98,7 +100,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       setStatus(null);
     }
     setShowHint(false);
-  }, [exercise.id, exercise.blocks, exercise.solution, isLessonDone]);
+  }, [exercise.id, exercise.blocks, exercise.solution, isLessonDone, lessonProg]);
 
   // Click to place block from available into placed
   const handleAddBlock = (block: DragBlock) => {
@@ -125,6 +127,9 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
         localStorage.removeItem(`mysql-academy-dragblock-${exercise.id}`);
         localStorage.setItem(`mysql-academy-dragblock-reset-${exercise.id}`, "true");
       } catch {}
+    }
+    if (currentLesson) {
+      saveDragBlockProgress(exercise.id, currentLesson.slug, false);
     }
   };
 
@@ -181,11 +186,10 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       if (typeof window !== "undefined") {
         try {
           localStorage.removeItem(`mysql-academy-dragblock-reset-${exercise.id}`);
-          localStorage.setItem(
-            `mysql-academy-dragblock-${exercise.id}`,
-            JSON.stringify({ completed: true })
-          );
         } catch {}
+      }
+      if (currentLesson) {
+        saveDragBlockProgress(exercise.id, currentLesson.slug, true);
       }
     } else if (count > 0) {
       setStatus("partial");

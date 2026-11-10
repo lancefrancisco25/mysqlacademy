@@ -43,6 +43,8 @@ export function CheckpointExam({
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
   const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const saveCheckpointProgress = useLessonStore((s) => s.saveCheckpointProgress);
+  const lessonProg = useLessonStore((s) => (currentLesson ? s.progress[currentLesson.slug] : undefined));
   const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   const [isResettingDB, setIsResettingDB] = useState(false);
@@ -62,19 +64,25 @@ export function CheckpointExam({
     >
   >(() => {
     let saved: any = null;
+    let isExplicitlyReset = false;
     if (typeof window !== "undefined") {
       try {
+        isExplicitlyReset = localStorage.getItem(`mysql-academy-checkpoint-reset-${exam.id}`) === "true";
         const raw = localStorage.getItem(`mysql-academy-checkpoint-${exam.id}`);
         if (raw) saved = JSON.parse(raw);
       } catch {}
     }
     const curLesson = useLessonStore.getState().currentLesson;
     const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
+    const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
+
+    const passedIds = saved?.passedQuestionIds || prog?.checkpointPassedIds || [];
+    const codes = saved?.codes || prog?.checkpointCodes || {};
 
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = isDone || (saved?.passedQuestionIds?.includes(q.id) || false);
-      const code = isPassed ? (saved?.codes?.[q.id] || q.solutionSQL || "") : (saved?.codes?.[q.id] || "");
+      const isPassed = !isExplicitlyReset && (isDone || passedIds.includes(q.id));
+      const code = isPassed ? (codes[q.id] || q.solutionSQL || "") : (codes[q.id] || "");
       initial[q.id] = {
         code: code,
         passed: isPassed,
@@ -86,7 +94,7 @@ export function CheckpointExam({
     return initial;
   });
 
-  // Rehydrate persisted checkpoint state across page refreshes
+  // Rehydrate persisted checkpoint state across page refreshes or cloud progress sync
   useEffect(() => {
     let saved: any = null;
     let isExplicitlyReset = false;
@@ -97,10 +105,14 @@ export function CheckpointExam({
         if (raw) saved = JSON.parse(raw);
       } catch {}
     }
+
+    const passedIds = saved?.passedQuestionIds || lessonProg?.checkpointPassedIds || [];
+    const codes = saved?.codes || lessonProg?.checkpointCodes || {};
+
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = !isExplicitlyReset && (isLessonDone || (saved?.passedQuestionIds?.includes(q.id) || false));
-      const code = isPassed ? (saved?.codes?.[q.id] || q.solutionSQL || "") : (saved?.codes?.[q.id] || "");
+      const isPassed = !isExplicitlyReset && (isLessonDone || passedIds.includes(q.id));
+      const code = isPassed ? (codes[q.id] || q.solutionSQL || "") : (codes[q.id] || "");
       initial[q.id] = {
         code: code,
         passed: isPassed,
@@ -110,7 +122,7 @@ export function CheckpointExam({
       };
     });
     setQuestionStates(initial);
-  }, [exam.id, exam.questions, isLessonDone]);
+  }, [exam.id, exam.questions, isLessonDone, lessonProg]);
 
   const handleCodeChange = (id: string, val: string) => {
     setQuestionStates((prev) => ({
@@ -182,14 +194,15 @@ export function CheckpointExam({
               exam.questions.forEach((item) => {
                 codes[item.id] = next[item.id]?.code || "";
               });
-              localStorage.setItem(
-                `mysql-academy-checkpoint-${exam.id}`,
-                JSON.stringify({
-                  passedQuestionIds: passedIds,
+              if (currentLesson) {
+                saveCheckpointProgress(
+                  exam.id,
+                  currentLesson.slug,
+                  passedIds,
                   codes,
-                  completed: passedIds.length === exam.questions.length,
-                })
-              );
+                  passedIds.length === exam.questions.length
+                );
+              }
             } catch {}
           }
           return next;
@@ -236,14 +249,15 @@ export function CheckpointExam({
           exam.questions.forEach((item) => {
             codes[item.id] = next[item.id]?.code || "";
           });
-          localStorage.setItem(
-            `mysql-academy-checkpoint-${exam.id}`,
-            JSON.stringify({
-              passedQuestionIds: passedIds,
+          if (currentLesson) {
+            saveCheckpointProgress(
+              exam.id,
+              currentLesson.slug,
+              passedIds,
               codes,
-              completed: passedIds.length === exam.questions.length,
-            })
-          );
+              passedIds.length === exam.questions.length
+            );
+          }
         } catch {}
       }
       return next;
@@ -259,6 +273,10 @@ export function CheckpointExam({
           localStorage.removeItem(`mysql-academy-checkpoint-${exam.id}`);
           localStorage.setItem(`mysql-academy-checkpoint-reset-${exam.id}`, "true");
         } catch {}
+      }
+
+      if (currentLesson) {
+        saveCheckpointProgress(exam.id, currentLesson.slug, [], {}, false);
       }
 
       const resetQuestions: Record<string, any> = {};

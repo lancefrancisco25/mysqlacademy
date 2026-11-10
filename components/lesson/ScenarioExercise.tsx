@@ -36,43 +36,50 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const currentLesson = useLessonStore((s) => s.currentLesson);
   const dbReady = useLessonStore((s) => s.dbReady);
   const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
-  const progress = useLessonStore((s) => s.progress);
+  const saveScenarioProgress = useLessonStore((s) => s.saveScenarioProgress);
+  const lessonProg = useLessonStore((s) => (currentLesson ? s.progress[currentLesson.slug] : undefined));
   const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   const [completedRequirements, setCompletedRequirements] = useState<string[]>(() => {
+    let saved: any = null;
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem(`mysql-academy-scenario-${exercise.id}`);
-        if (raw) {
-          const s = JSON.parse(raw);
-          if (s?.completed && Array.isArray(s.completedRequirements)) {
-            return s.completedRequirements;
-          }
-        }
-        const curLesson = useLessonStore.getState().currentLesson;
-        if (curLesson && useLessonStore.getState().isLessonCompleted(curLesson.slug)) {
-          return exercise.requirements.map((r) => r.id);
-        }
+        if (raw) saved = JSON.parse(raw);
       } catch {}
+    }
+    const curLesson = useLessonStore.getState().currentLesson;
+    const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
+    const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
+
+    if (saved?.completed && Array.isArray(saved.completedRequirements)) {
+      return saved.completedRequirements;
+    }
+    if (prog?.scenarioCompleted && Array.isArray(prog.scenarioCompletedRequirements)) {
+      return prog.scenarioCompletedRequirements;
+    }
+    if (isDone) {
+      return exercise.requirements.map((r) => r.id);
     }
     return [];
   });
 
   const [sqlCode, setSqlCode] = useState<string>(() => {
+    let saved: any = null;
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem(`mysql-academy-scenario-${exercise.id}`);
-        if (raw) {
-          const s = JSON.parse(raw);
-          if (s?.completed && s.code) return s.code;
-          if (s?.completed) return exercise.solutionSQL;
-        }
-        const curLesson = useLessonStore.getState().currentLesson;
-        if (curLesson && useLessonStore.getState().isLessonCompleted(curLesson.slug)) {
-          return exercise.solutionSQL;
-        }
+        if (raw) saved = JSON.parse(raw);
       } catch {}
     }
+    const curLesson = useLessonStore.getState().currentLesson;
+    const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
+    const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
+
+    if (saved?.completed && saved.code) return saved.code;
+    if (saved?.completed) return exercise.solutionSQL;
+    if (prog?.scenarioCompleted && prog.scenarioCode) return prog.scenarioCode;
+    if (prog?.scenarioCompleted || isDone) return exercise.solutionSQL;
     return exercise.starterSQL || "";
   });
 
@@ -108,9 +115,9 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       } catch {}
     }
 
-    if (!isExplicitlyReset && (savedState?.completed || isLessonDone)) {
+    if (!isExplicitlyReset && (savedState?.completed || lessonProg?.scenarioCompleted || isLessonDone)) {
       setCompletedRequirements(exercise.requirements.map((r) => r.id));
-      setSqlCode(exercise.solutionSQL);
+      setSqlCode(savedState?.code || lessonProg?.scenarioCode || exercise.solutionSQL);
       // Do NOT open solution or hints automatically unless user explicitly clicks
       setShowSolution(false);
     } else {
@@ -154,7 +161,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         console.warn("[Scenario] Initial schema setup notice:", err);
       }
     }
-  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, exercise.solutionSQL, isLessonDone, dbReady, executeQuery, exercise.schemaSetupSQL]);
+  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, exercise.solutionSQL, isLessonDone, dbReady, executeQuery, exercise.schemaSetupSQL, lessonProg?.scenarioCompleted, lessonProg?.scenarioCode]);
 
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
@@ -285,26 +292,24 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
 
       setCompletedRequirements(satisfied);
 
-      // Persist completion state across page refreshes (do NOT auto-open hints or solutions unless clicked)
-      if (satisfied.length === exercise.requirements.length) {
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.removeItem(`mysql-academy-scenario-reset-${exercise.id}`);
-            localStorage.setItem(
-              `mysql-academy-scenario-${exercise.id}`,
-              JSON.stringify({
-                completed: true,
-                completedRequirements: satisfied,
-                code: sqlCode,
-                completedAt: Date.now(),
-              })
-            );
-          } catch {}
-        }
-      }
-
       const isAllDone = satisfied.length === exercise.requirements.length;
       const isPartial = satisfied.length > 0 && !isAllDone;
+
+      if (isAllDone && typeof window !== "undefined") {
+        try {
+          localStorage.removeItem(`mysql-academy-scenario-reset-${exercise.id}`);
+        } catch {}
+      }
+
+      if (currentLesson) {
+        saveScenarioProgress(
+          exercise.id,
+          currentLesson.slug,
+          isAllDone,
+          sqlCode,
+          satisfied
+        );
+      }
 
       if (isAllDone) {
         setExecutionOutput({
@@ -361,6 +366,9 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       setExecutionOutput(null);
       setShowSolution(false);
       setOpenHints({});
+      if (currentLesson) {
+        saveScenarioProgress(exercise.id, currentLesson.slug, false, "", []);
+      }
       if (currentLesson?.seedSQL) {
         await resetDB(currentLesson.seedSQL);
       }

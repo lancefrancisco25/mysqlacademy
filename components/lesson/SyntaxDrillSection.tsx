@@ -42,6 +42,8 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
   const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
+  const saveDrillProgress = useLessonStore((s) => s.saveDrillProgress);
+  const lessonProg = useLessonStore((s) => s.progress[lessonSlug]);
   const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   const storageKey = `mysql-academy-drills-${lessonSlug}`;
@@ -58,11 +60,14 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       } catch {}
     }
 
+    const passedIds = saved?.passedIds || lessonProg?.completedDrillIds || [];
+    const codes = saved?.codes || lessonProg?.drillCodes || {};
+
     const initial: Record<string, ItemState> = {};
     drills.forEach((drill) => {
-      const isPassed = !isExplicitlyReset && (isLessonDone || (saved?.passedIds?.includes(drill.id) || false));
+      const isPassed = !isExplicitlyReset && (isLessonDone || passedIds.includes(drill.id));
       initial[drill.id] = {
-        code: isPassed ? (saved?.codes?.[drill.id] || drill.solutionSQL) : (saved?.codes?.[drill.id] || drill.starterSQL || ""),
+        code: isPassed ? (codes[drill.id] || drill.solutionSQL) : (codes[drill.id] || drill.starterSQL || ""),
         passed: isPassed,
         status: isPassed ? "correct" : "idle",
         message: isPassed ? "✓ Syntax verified! Solution passed." : undefined,
@@ -74,7 +79,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
     return initial;
   });
 
-  // Rehydrate on page load or lesson change
+  // Rehydrate on page load or lesson change or cloud progress sync
   useEffect(() => {
     let saved: any = null;
     let isExplicitlyReset = false;
@@ -86,11 +91,14 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       } catch {}
     }
 
+    const passedIds = saved?.passedIds || lessonProg?.completedDrillIds || [];
+    const codes = saved?.codes || lessonProg?.drillCodes || {};
+
     const next: Record<string, ItemState> = {};
     drills.forEach((drill) => {
-      const isPassed = !isExplicitlyReset && (isLessonDone || (saved?.passedIds?.includes(drill.id) || false));
+      const isPassed = !isExplicitlyReset && (isLessonDone || passedIds.includes(drill.id));
       next[drill.id] = {
-        code: isPassed ? (saved?.codes?.[drill.id] || drill.solutionSQL) : (saved?.codes?.[drill.id] || drill.starterSQL || ""),
+        code: isPassed ? (codes[drill.id] || drill.solutionSQL) : (codes[drill.id] || drill.starterSQL || ""),
         passed: isPassed,
         status: isPassed ? "correct" : "idle",
         message: isPassed ? "✓ Syntax verified! Solution passed." : undefined,
@@ -100,7 +108,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       };
     });
     setItemStates(next);
-  }, [lessonSlug, drills, isLessonDone, resetKey, storageKey]);
+  }, [lessonSlug, drills, isLessonDone, resetKey, storageKey, lessonProg]);
 
   const handleCodeChange = (id: string, val: string) => {
     setItemStates((prev) => ({
@@ -169,19 +177,12 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
         },
       };
 
-      if (typeof window !== "undefined") {
-        try {
-          const passedIds = drills.filter((d) => next[d.id]?.passed).map((d) => d.id);
-          const codes: Record<string, string> = {};
-          drills.forEach((d) => {
-            codes[d.id] = next[d.id]?.code || "";
-          });
-          localStorage.setItem(
-            storageKey,
-            JSON.stringify({ passedIds, codes, completed: passedIds.length === drills.length })
-          );
-        } catch {}
-      }
+      const passedIds = drills.filter((d) => next[d.id]?.passed).map((d) => d.id);
+      const codes: Record<string, string> = {};
+      drills.forEach((d) => {
+        codes[d.id] = next[d.id]?.code || "";
+      });
+      saveDrillProgress(lessonSlug, passedIds, codes);
 
       return next;
     });
@@ -209,6 +210,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       };
     });
     setItemStates(resetStates);
+    saveDrillProgress(lessonSlug, [], {});
 
     if (currentLesson?.seedSQL) {
       try {
@@ -283,22 +285,17 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
           },
         };
 
-        if (typeof window !== "undefined") {
+        const passedIds = drills.filter((d) => next[d.id]?.passed).map((d) => d.id);
+        if (passedIds.length === drills.length && typeof window !== "undefined") {
           try {
-            const passedIds = drills.filter((d) => next[d.id]?.passed).map((d) => d.id);
-            if (passedIds.length === drills.length) {
-              localStorage.removeItem(resetKey);
-            }
-            const codes: Record<string, string> = {};
-            drills.forEach((d) => {
-              codes[d.id] = next[d.id]?.code || "";
-            });
-            localStorage.setItem(
-              storageKey,
-              JSON.stringify({ passedIds, codes, completed: passedIds.length === drills.length })
-            );
+            localStorage.removeItem(resetKey);
           } catch {}
         }
+        const codes: Record<string, string> = {};
+        drills.forEach((d) => {
+          codes[d.id] = next[d.id]?.code || "";
+        });
+        saveDrillProgress(lessonSlug, passedIds, codes);
 
         return next;
       });

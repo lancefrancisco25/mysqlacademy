@@ -62,6 +62,30 @@ interface LessonState {
   isLessonCompleted: (lessonSlug: string) => boolean;
   getLessonProgress: (lessonSlug: string) => number; // 0-100
   getOverallStats: () => { completedLessons: number; totalTasksDone: number; masteryScore: number };
+  saveDrillProgress: (
+    lessonSlug: string,
+    passedIds: string[],
+    codes: Record<string, string>
+  ) => void;
+  saveCheckpointProgress: (
+    examId: string,
+    lessonSlug: string,
+    passedQuestionIds: string[],
+    codes: Record<string, string>,
+    completed: boolean
+  ) => void;
+  saveScenarioProgress: (
+    exerciseId: string,
+    lessonSlug: string,
+    completed: boolean,
+    code: string,
+    completedRequirements: string[]
+  ) => void;
+  saveDragBlockProgress: (
+    exerciseId: string,
+    lessonSlug: string,
+    completed: boolean
+  ) => void;
 
   // Agent feedback
   feedback: AgentFeedback[];
@@ -96,7 +120,70 @@ function saveProgress(progress: Record<string, LessonProgress>) {
 }
 
 /**
- * Merge local and cloud progress taking the union of completed tasks
+ * Rehydrate localStorage items from the canonical progress record
+ */
+function syncProgressToLocalStorage(progress: Record<string, LessonProgress>) {
+  if (typeof window === "undefined") return;
+  try {
+    for (const [slug, p] of Object.entries(progress)) {
+      const lesson = getLessonBySlug(slug);
+      if (p.isCompleted) {
+        localStorage.setItem(`mysql-academy-lesson-completed-${slug}`, "true");
+      }
+      if (p.completedDrillIds && p.completedDrillIds.length > 0) {
+        const isAllDrillsPassed = lesson?.syntaxDrills
+          ? p.completedDrillIds.length >= lesson.syntaxDrills.length
+          : false;
+        localStorage.setItem(
+          `mysql-academy-drills-${slug}`,
+          JSON.stringify({
+            passedIds: p.completedDrillIds,
+            codes: p.drillCodes || {},
+            completed: isAllDrillsPassed,
+          })
+        );
+      }
+      if (lesson?.checkpointExam && p.checkpointPassedIds && p.checkpointPassedIds.length > 0) {
+        const isExamPassed = p.checkpointPassedIds.length >= lesson.checkpointExam.questions.length;
+        localStorage.setItem(
+          `mysql-academy-checkpoint-${lesson.checkpointExam.id}`,
+          JSON.stringify({
+            passedQuestionIds: p.checkpointPassedIds,
+            codes: p.checkpointCodes || {},
+            completed: isExamPassed,
+          })
+        );
+      }
+      if (lesson?.exercises) {
+        lesson.exercises.forEach((ex) => {
+          if (
+            ex.type === "scenario" &&
+            (p.scenarioCompleted ||
+              (p.scenarioCompletedRequirements && p.scenarioCompletedRequirements.length > 0))
+          ) {
+            localStorage.setItem(
+              `mysql-academy-scenario-${ex.id}`,
+              JSON.stringify({
+                completed: p.scenarioCompleted || false,
+                completedRequirements: p.scenarioCompletedRequirements || [],
+                code: p.scenarioCode || "",
+                completedAt: Date.now(),
+              })
+            );
+          } else if (ex.type === "drag-block" && p.dragBlockCompleted) {
+            localStorage.setItem(
+              `mysql-academy-dragblock-${ex.id}`,
+              JSON.stringify({ completed: true })
+            );
+          }
+        });
+      }
+    }
+  } catch {}
+}
+
+/**
+ * Merge local and cloud progress taking the union of completed tasks and items
  */
 function mergeProgress(
   local: Record<string, LessonProgress>,
@@ -114,9 +201,47 @@ function mergeProgress(
           ...(cloudProg.completedTaskIds || []),
         ])
       );
+      const combinedDrills = Array.from(
+        new Set([
+          ...(localProg.completedDrillIds || []),
+          ...(cloudProg.completedDrillIds || []),
+        ])
+      );
+      const combinedCheckpoints = Array.from(
+        new Set([
+          ...(localProg.checkpointPassedIds || []),
+          ...(cloudProg.checkpointPassedIds || []),
+        ])
+      );
+      const combinedScenarioReqs = Array.from(
+        new Set([
+          ...(localProg.scenarioCompletedRequirements || []),
+          ...(cloudProg.scenarioCompletedRequirements || []),
+        ])
+      );
+
       merged[slug] = {
         lessonSlug: slug,
         completedTaskIds: combinedTasks,
+        completedDrillIds: combinedDrills,
+        drillCodes: {
+          ...(cloudProg.drillCodes || {}),
+          ...(localProg.drillCodes || {}),
+        },
+        checkpointPassedIds: combinedCheckpoints,
+        checkpointCodes: {
+          ...(cloudProg.checkpointCodes || {}),
+          ...(localProg.checkpointCodes || {}),
+        },
+        scenarioCompleted: Boolean(
+          localProg.scenarioCompleted || cloudProg.scenarioCompleted
+        ),
+        scenarioCode: localProg.scenarioCode || cloudProg.scenarioCode,
+        scenarioCompletedRequirements: combinedScenarioReqs,
+        dragBlockCompleted: Boolean(
+          localProg.dragBlockCompleted || cloudProg.dragBlockCompleted
+        ),
+        isCompleted: Boolean(localProg.isCompleted || cloudProg.isCompleted),
         lastAccessed: Math.max(
           localProg.lastAccessed || 0,
           cloudProg.lastAccessed || 0
@@ -140,6 +265,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     if (typeof window !== "undefined") {
       const saved = loadProgress();
       if (Object.keys(saved).length > 0) {
+        syncProgressToLocalStorage(saved);
         set({ progress: saved });
       }
     }
@@ -354,6 +480,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
       // Persist merged progress locally
       saveProgress(merged);
+      syncProgressToLocalStorage(merged);
       set({ progress: merged });
 
       // Save back to cloud so both are in perfect parity
@@ -377,6 +504,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     if (typeof window === "undefined") return;
     const saved = loadProgress();
     if (Object.keys(saved).length > 0) {
+      syncProgressToLocalStorage(saved);
       set((s) => ({ progress: { ...s.progress, ...saved } }));
     }
   },
@@ -503,13 +631,16 @@ export const useLessonStore = create<LessonState>((set, get) => ({
   },
 
   isLessonCompleted: (lessonSlug: string) => {
+    const p = get().progress[lessonSlug];
+    if (p?.isCompleted) {
+      return true;
+    }
     if (typeof window !== "undefined") {
       if (localStorage.getItem(`mysql-academy-lesson-completed-${lessonSlug}`) === "true") {
         return true;
       }
     }
     const lesson = getLessonBySlug(lessonSlug);
-    const p = get().progress[lessonSlug];
     if (!lesson || !p || !p.completedTaskIds || !lesson.tasks || lesson.tasks.length === 0) {
       return false;
     }
@@ -520,79 +651,63 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     const lesson = getLessonBySlug(lessonSlug);
     if (!lesson) return;
     const allTaskIds = lesson.tasks.map((t) => t.id);
+    const allDrillIds = lesson.syntaxDrills?.map((d) => d.id) || [];
+    const drillCodes: Record<string, string> = {};
+    lesson.syntaxDrills?.forEach((d) => {
+      drillCodes[d.id] = d.solutionSQL;
+    });
+    const allCheckpointIds = lesson.checkpointExam?.questions.map((q) => q.id) || [];
+    const checkpointCodes: Record<string, string> = {};
+    lesson.checkpointExam?.questions.forEach((q) => {
+      checkpointCodes[q.id] = q.solutionSQL || "";
+    });
+    const scenarioExercise = lesson.exercises?.find((e) => e.type === "scenario") as any;
+
     const currentProgress = get().progress;
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
         lessonSlug,
         completedTaskIds: allTaskIds,
+        completedDrillIds: allDrillIds,
+        drillCodes,
+        checkpointPassedIds: allCheckpointIds,
+        checkpointCodes,
+        scenarioCompleted: Boolean(scenarioExercise),
+        scenarioCode: scenarioExercise?.solutionSQL || "",
+        scenarioCompletedRequirements: scenarioExercise?.requirements?.map((r: any) => r.id) || [],
+        dragBlockCompleted: Boolean(lesson.exercises?.some((e) => e.type === "drag-block")),
+        isCompleted: true,
         lastAccessed: Date.now(),
       },
     };
     saveProgress(updatedProgress);
-    if (typeof window !== "undefined") {
+    syncProgressToLocalStorage(updatedProgress);
+
+    if (typeof window !== "undefined" && lesson.intuitionCheck) {
       try {
-        localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
-        // Pre-fill scenario if lesson has scenario
-        lesson.exercises?.forEach((ex) => {
-          if (ex.type === "scenario") {
-            localStorage.setItem(
-              `mysql-academy-scenario-${ex.id}`,
-              JSON.stringify({
-                completed: true,
-                completedRequirements: ex.requirements.map((r) => r.id),
-                code: ex.solutionSQL,
-                completedAt: Date.now(),
-              })
-            );
-          } else if (ex.type === "drag-block") {
-            localStorage.setItem(
-              `mysql-academy-dragblock-${ex.id}`,
-              JSON.stringify({ completed: true })
-            );
-          }
-        });
-        // Pre-fill checkpoint questions if exists
-        if (lesson.checkpointExam) {
-          const codes: Record<string, string> = {};
-          lesson.checkpointExam.questions.forEach((q) => {
-            codes[q.id] = q.solutionSQL || "";
-          });
-          localStorage.setItem(
-            `mysql-academy-checkpoint-${lesson.checkpointExam.id}`,
-            JSON.stringify({
-              passedQuestionIds: lesson.checkpointExam.questions.map((q) => q.id),
-              codes,
-              completed: true,
-            })
-          );
-        }
-        // Pre-fill intuition check
-        if (lesson.intuitionCheck) {
-          localStorage.setItem(
-            `mysql-academy-intuition-${lessonSlug}`,
-            JSON.stringify({ selectedOption: lesson.intuitionCheck.correctIndex })
-          );
-        }
-        // Pre-fill syntax drills if exists
-        if (lesson.syntaxDrills && lesson.syntaxDrills.length > 0) {
-          const drillCodes: Record<string, string> = {};
-          lesson.syntaxDrills.forEach((d) => {
-            drillCodes[d.id] = d.solutionSQL;
-          });
-          localStorage.setItem(
-            `mysql-academy-drills-${lessonSlug}`,
-            JSON.stringify({
-              passedIds: lesson.syntaxDrills.map((d) => d.id),
-              codes: drillCodes,
-              completed: true,
-            })
-          );
-        }
+        localStorage.setItem(
+          `mysql-academy-intuition-${lessonSlug}`,
+          JSON.stringify({ selectedOption: lesson.intuitionCheck.correctIndex })
+        );
       } catch {}
     }
+
     set({ progress: updatedProgress });
     toast.success("Lesson marked complete! All items pre-filled.");
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
   },
 
   resetLessonProgress: (lessonSlug: string) => {
@@ -602,6 +717,15 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       [lessonSlug]: {
         lessonSlug,
         completedTaskIds: [],
+        completedDrillIds: [],
+        drillCodes: {},
+        checkpointPassedIds: [],
+        checkpointCodes: {},
+        scenarioCompleted: false,
+        scenarioCode: "",
+        scenarioCompletedRequirements: [],
+        dragBlockCompleted: false,
+        isCompleted: false,
         lastAccessed: Date.now(),
       },
     };
@@ -627,6 +751,234 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     }
     set({ progress: updatedProgress });
     toast.info("Lesson reset to initial state.");
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
+  },
+
+  saveDrillProgress: (lessonSlug: string, passedIds: string[], codes: Record<string, string>) => {
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    const targetLesson = getLessonBySlug(lessonSlug);
+    const allDrillsPassed =
+      targetLesson?.syntaxDrills && targetLesson.syntaxDrills.length > 0
+        ? passedIds.length >= targetLesson.syntaxDrills.length
+        : false;
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        ...currentLessonProg,
+        completedDrillIds: passedIds,
+        drillCodes: codes,
+        lastAccessed: Date.now(),
+      },
+    };
+
+    saveProgress(updatedProgress);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-drills-${lessonSlug}`,
+          JSON.stringify({
+            passedIds,
+            codes,
+            completed: allDrillsPassed,
+          })
+        );
+      } catch {}
+    }
+
+    set({ progress: updatedProgress });
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
+  },
+
+  saveCheckpointProgress: (
+    examId: string,
+    lessonSlug: string,
+    passedQuestionIds: string[],
+    codes: Record<string, string>,
+    completed: boolean
+  ) => {
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        ...currentLessonProg,
+        checkpointPassedIds: passedQuestionIds,
+        checkpointCodes: codes,
+        lastAccessed: Date.now(),
+      },
+    };
+
+    saveProgress(updatedProgress);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-checkpoint-${examId}`,
+          JSON.stringify({
+            passedQuestionIds,
+            codes,
+            completed,
+          })
+        );
+      } catch {}
+    }
+
+    set({ progress: updatedProgress });
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
+  },
+
+  saveScenarioProgress: (
+    exerciseId: string,
+    lessonSlug: string,
+    completed: boolean,
+    code: string,
+    completedRequirements: string[]
+  ) => {
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        ...currentLessonProg,
+        scenarioCompleted: completed,
+        scenarioCode: code,
+        scenarioCompletedRequirements: completedRequirements,
+        lastAccessed: Date.now(),
+      },
+    };
+
+    saveProgress(updatedProgress);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-scenario-${exerciseId}`,
+          JSON.stringify({
+            completed,
+            completedRequirements,
+            code,
+            completedAt: Date.now(),
+          })
+        );
+      } catch {}
+    }
+
+    set({ progress: updatedProgress });
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
+  },
+
+  saveDragBlockProgress: (
+    exerciseId: string,
+    lessonSlug: string,
+    completed: boolean
+  ) => {
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: {
+        ...currentLessonProg,
+        dragBlockCompleted: completed,
+        lastAccessed: Date.now(),
+      },
+    };
+
+    saveProgress(updatedProgress);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-dragblock-${exerciseId}`,
+          JSON.stringify({ completed })
+        );
+      } catch {}
+    }
+
+    set({ progress: updatedProgress });
+
+    // Cloud push if logged in
+    const user = get().user;
+    if (user && isSupabaseConfigured()) {
+      set({ cloudSyncStatus: "syncing" });
+      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
+        if (ok) {
+          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+        } else {
+          set({ cloudSyncStatus: "error" });
+        }
+      });
+    }
   },
 
   getLessonProgress: (lessonSlug: string) => {
