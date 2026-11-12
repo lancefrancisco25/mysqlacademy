@@ -1,4 +1,9 @@
 import type { Lesson, LessonProgress } from "@/types";
+import {
+  CHECKPOINT_TO_TASK_MAP,
+  TASK_TO_CHECKPOINT_MAP,
+  getCanonicalProblemId,
+} from "./problem-linking";
 
 export interface LessonSubcategoryItem {
   id: "concept" | "intuition" | "builder" | "scenario" | "drills" | "checkpoint" | "lab";
@@ -8,6 +13,7 @@ export interface LessonSubcategoryItem {
   done: boolean;
   total: number;
   completed: number;
+  isUnderCheckpoint?: boolean;
 }
 
 export interface LessonActivityStats {
@@ -145,17 +151,54 @@ export function getLessonActivityStats(
     });
   }
 
+  // 6 & 7. Final Lesson Checkpoint Exam & Interactive Lab Tasks
+  // When a problem in the Final Checkpoint and Interactive Lab activity is the same,
+  // deduplicate them and count them as one canonical problem in total/completed activities.
+  const uniqueSQLProblems = new Set<string>();
+  const completedSQLProblems = new Set<string>();
+
+  const passedCheckpointIds = p?.checkpointPassedIds || [];
+  const completedTaskIds = p?.completedTaskIds || [];
+
+  if (lesson.checkpointExam && lesson.checkpointExam.questions.length > 0) {
+    for (const q of lesson.checkpointExam.questions) {
+      const canonical = getCanonicalProblemId(q.id);
+      uniqueSQLProblems.add(canonical);
+      const isPassed =
+        passedCheckpointIds.includes(q.id) ||
+        (CHECKPOINT_TO_TASK_MAP[q.id] && completedTaskIds.includes(CHECKPOINT_TO_TASK_MAP[q.id]));
+      if (isPassed) {
+        completedSQLProblems.add(canonical);
+      }
+    }
+  }
+
+  if (lesson.tasks && lesson.tasks.length > 0) {
+    for (const t of lesson.tasks) {
+      const canonical = getCanonicalProblemId(t.id);
+      uniqueSQLProblems.add(canonical);
+      const isDone =
+        completedTaskIds.includes(t.id) ||
+        (TASK_TO_CHECKPOINT_MAP[t.id] && passedCheckpointIds.includes(TASK_TO_CHECKPOINT_MAP[t.id]));
+      if (isDone) {
+        completedSQLProblems.add(canonical);
+      }
+    }
+  }
+
+  // Count unique SQL problems in module total/completed activities
+  totalActivities += uniqueSQLProblems.size;
+  completedActivities += completedSQLProblems.size;
+
+  // Subcategories in sidebar:
   // 6. Final Lesson Checkpoint Exam
   if (lesson.checkpointExam && lesson.checkpointExam.questions.length > 0) {
     const totalQuestions = lesson.checkpointExam.questions.length;
-    totalActivities += totalQuestions;
-
-    const passedIds = p?.checkpointPassedIds || [];
     const passedQuestionsCount = lesson.checkpointExam.questions.filter((q) =>
-      passedIds.includes(q.id)
+      passedCheckpointIds.includes(q.id) ||
+      (CHECKPOINT_TO_TASK_MAP[q.id] && completedTaskIds.includes(CHECKPOINT_TO_TASK_MAP[q.id]))
     ).length;
 
-    completedActivities += passedQuestionsCount;
     subcategories.push({
       id: "checkpoint",
       label: "Final Checkpoint",
@@ -167,17 +210,14 @@ export function getLessonActivityStats(
     });
   }
 
-  // 7. Interactive Lab Tasks
+  // 7. Interactive SQL Lab (nested under Final Checkpoint in sidebar)
   if (lesson.tasks && lesson.tasks.length > 0) {
     const totalTasks = lesson.tasks.length;
-    totalActivities += totalTasks;
-
-    const completedTaskIds = p?.completedTaskIds || [];
     const doneTasksCount = lesson.tasks.filter((t) =>
-      completedTaskIds.includes(t.id)
+      completedTaskIds.includes(t.id) ||
+      (TASK_TO_CHECKPOINT_MAP[t.id] && passedCheckpointIds.includes(TASK_TO_CHECKPOINT_MAP[t.id]))
     ).length;
 
-    completedActivities += doneTasksCount;
     subcategories.push({
       id: "lab",
       label: "Interactive SQL Lab",
@@ -186,6 +226,7 @@ export function getLessonActivityStats(
       done: doneTasksCount >= totalTasks,
       total: totalTasks,
       completed: doneTasksCount,
+      isUnderCheckpoint: true,
     });
   }
 

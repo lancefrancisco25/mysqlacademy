@@ -26,6 +26,7 @@ import { type LeaderboardEntry } from "@/lib/leaderboard-data";
 import { useLessonStore } from "@/lib/store";
 import { getLessonBySlug } from "@/lib/lessons";
 import { getLessonActivityStats } from "@/lib/lessons/activities";
+import { getCanonicalProblemId } from "@/lib/lessons/problem-linking";
 import {
   fetchCloudLeaderboard,
   saveCloudProgress,
@@ -39,17 +40,15 @@ const STORAGE_OPT_IN_KEY = "mysql-academy-leaderboard-opt-in";
 /**
  * Parses raw JSON progress into comprehensive academic statistics and point totals.
  * • Module Mastery Bonus (All required module activities 100% complete): 150 pts
- * • Interactive Terminal Lab Tasks: 35 pts each
- * • Final Lesson Checkpoint Exam Questions: 35 pts each
+ * • SQL Problem (Final Checkpoint / Terminal Lab): 35 pts per unique problem (unified, not separate)
  * • Hands-On Scenario Blueprint Challenges: 30 pts each
  * • Situational Syntax Speed Drills: 20 pts each
  * • Quick Intuition Checks: 15 pts each
  */
 function parseProgressToStats(rawProgress: Record<string, any>) {
-  let completedTasks = 0;
+  let completedSQLProblems = 0;
   let completedLessons = 0;
   let completedDrills = 0;
-  let completedCheckpoints = 0;
   let completedScenarios = 0;
   let completedIntuitions = 0;
 
@@ -58,14 +57,22 @@ function parseProgressToStats(rawProgress: Record<string, any>) {
     const p = val as any;
     if (!p) continue;
 
+    // Deduplicate: If checkpoint question and lab task are the same problem, count once as 1 pointing per problem
+    const uniqueProblems = new Set<string>();
     if (Array.isArray(p.completedTaskIds)) {
-      completedTasks += p.completedTaskIds.length;
-    }
-    if (Array.isArray(p.completedDrillIds)) {
-      completedDrills += p.completedDrillIds.length;
+      for (const tid of p.completedTaskIds) {
+        uniqueProblems.add(`${key}:${getCanonicalProblemId(tid)}`);
+      }
     }
     if (Array.isArray(p.checkpointPassedIds)) {
-      completedCheckpoints += p.checkpointPassedIds.length;
+      for (const qid of p.checkpointPassedIds) {
+        uniqueProblems.add(`${key}:${getCanonicalProblemId(qid)}`);
+      }
+    }
+    completedSQLProblems += uniqueProblems.size;
+
+    if (Array.isArray(p.completedDrillIds)) {
+      completedDrills += p.completedDrillIds.length;
     }
     if (p.scenarioCompleted) {
       completedScenarios += 1;
@@ -90,15 +97,13 @@ function parseProgressToStats(rawProgress: Record<string, any>) {
 
   const scoreAllTime =
     completedLessons * 150 +
-    completedTasks * 35 +
-    completedCheckpoints * 35 +
+    completedSQLProblems * 35 +
     completedScenarios * 30 +
     completedDrills * 20 +
     completedIntuitions * 15;
 
   const totalActivitiesDone =
-    completedTasks +
-    completedCheckpoints +
+    completedSQLProblems +
     completedScenarios +
     completedDrills +
     completedIntuitions;
@@ -114,9 +119,9 @@ function parseProgressToStats(rawProgress: Record<string, any>) {
   return {
     completedLessons,
     completedTasks: totalActivitiesDone,
-    rawCompletedTasks: completedTasks,
+    rawCompletedTasks: completedSQLProblems,
     completedDrills,
-    completedCheckpoints,
+    completedCheckpoints: completedSQLProblems,
     completedScenarios,
     completedIntuitions,
     totalActivitiesDone,
@@ -604,7 +609,7 @@ export default function LeaderboardPage() {
         </section>
 
         {/* ── Scoring Breakdown Panel ─────────────────────────────────── */}
-        <section aria-label="Point System Breakdown" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <section aria-label="Point System Breakdown" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-center space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-bold block">
               Module Mastery
@@ -615,24 +620,14 @@ export default function LeaderboardPage() {
             <p className="text-[10px] text-muted-foreground leading-tight">All required activities 100%</p>
           </div>
 
-          <div className="p-3 rounded-xl border border-sky-500/30 bg-sky-500/5 text-center space-y-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-sky-600 dark:text-sky-400 font-bold block">
-              Terminal Lab
-            </span>
-            <div className="text-lg font-mono font-extrabold text-foreground">
-              35 <span className="text-xs font-normal text-muted-foreground">pts</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground leading-tight">Per verified SQL query</p>
-          </div>
-
           <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold block">
-              Checkpoint Exam
+              Checkpoint &amp; Lab
             </span>
             <div className="text-lg font-mono font-extrabold text-foreground">
               35 <span className="text-xs font-normal text-muted-foreground">pts</span>
             </div>
-            <p className="text-[10px] text-muted-foreground leading-tight">Per passed exam question</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">1 pointing per unique problem</p>
           </div>
 
           <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 text-center space-y-1">

@@ -24,6 +24,7 @@ import {
   Terminal,
   Code2,
   Building2,
+  CornerDownRight,
 } from "lucide-react";
 import { TRACKS, LESSONS, getLessonsForTrack, getTrackForLesson } from "@/lib/lessons";
 import { getLessonActivityStats } from "@/lib/lessons/activities";
@@ -325,12 +326,17 @@ export function CurriculumSidebar({
                                     }}
                                     className={cn(
                                       "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] font-medium transition-colors text-left group",
+                                      subcat.isUnderCheckpoint &&
+                                        "ml-3.5 pl-2 border-l-2 border-border/60 dark:border-border/40 text-[10.5px] w-[calc(100%-0.875rem)] bg-muted/20 my-0.5",
                                       subcat.done
                                         ? "text-foreground hover:bg-emerald-500/10"
                                         : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
                                     )}
                                   >
                                     <div className="flex items-center gap-1.5 min-w-0">
+                                      {subcat.isUnderCheckpoint && (
+                                        <CornerDownRight className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+                                      )}
                                       <SubcatIcon
                                         className={cn(
                                           "h-3 w-3 shrink-0",

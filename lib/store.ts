@@ -19,6 +19,11 @@ import {
 } from "./sql-engine/engine";
 import { getLessonBySlug, LESSONS } from "./lessons";
 import { getLessonActivityStats } from "./lessons/activities";
+import {
+  getCanonicalProblemId,
+  CHECKPOINT_TO_TASK_MAP,
+  TASK_TO_CHECKPOINT_MAP,
+} from "./lessons/problem-linking";
 import { validateTask } from "./agents/validator";
 import { getMentorHint } from "./agents/mentor";
 import { analyzeSQLSafety } from "./sql-engine/safety";
@@ -286,17 +291,15 @@ function pushCloudProgressHelper(
 /**
  * Calculate total points earned by a student across all curriculum activities.
  * • Module Mastery Bonus (All activities complete): 150 pts
- * • Interactive Lab Task (Verified in WASM engine): 35 pts each
- * • Final Checkpoint Exam Question: 35 pts each
+ * • SQL Problem (Final Checkpoint / Terminal Lab): 35 pts per unique problem (unified, not separate)
  * • Scenario Blueprint Challenge: 30 pts each
  * • Situational Syntax Speed Drill: 20 pts each
  * • Quick Intuition Check: 15 pts each
  */
 export function calculateProgressScore(progress: Record<string, any>): number {
-  let completedTasks = 0;
+  let completedSQLProblems = 0;
   let completedLessons = 0;
   let completedDrills = 0;
-  let completedCheckpoints = 0;
   let completedScenarios = 0;
   let completedIntuitions = 0;
 
@@ -305,14 +308,22 @@ export function calculateProgressScore(progress: Record<string, any>): number {
     const p = val as any;
     if (!p) continue;
 
+    // Deduplicate: If checkpoint question and lab task are the same problem, count once as 1 pointing per problem
+    const uniqueProblems = new Set<string>();
     if (Array.isArray(p.completedTaskIds)) {
-      completedTasks += p.completedTaskIds.length;
-    }
-    if (Array.isArray(p.completedDrillIds)) {
-      completedDrills += p.completedDrillIds.length;
+      for (const tid of p.completedTaskIds) {
+        uniqueProblems.add(`${key}:${getCanonicalProblemId(tid)}`);
+      }
     }
     if (Array.isArray(p.checkpointPassedIds)) {
-      completedCheckpoints += p.checkpointPassedIds.length;
+      for (const qid of p.checkpointPassedIds) {
+        uniqueProblems.add(`${key}:${getCanonicalProblemId(qid)}`);
+      }
+    }
+    completedSQLProblems += uniqueProblems.size;
+
+    if (Array.isArray(p.completedDrillIds)) {
+      completedDrills += p.completedDrillIds.length;
     }
     if (p.scenarioCompleted) {
       completedScenarios += 1;
@@ -337,8 +348,7 @@ export function calculateProgressScore(progress: Record<string, any>): number {
 
   return (
     completedLessons * 150 +
-    completedTasks * 35 +
-    completedCheckpoints * 35 +
+    completedSQLProblems * 35 +
     completedScenarios * 30 +
     completedDrills * 20 +
     completedIntuitions * 15
@@ -650,15 +660,26 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
-    if (currentLessonProg.completedTaskIds.includes(taskId)) {
+    const currentTasks = currentLessonProg.completedTaskIds || [];
+    if (currentTasks.includes(taskId)) {
       return;
     }
+
+    const updatedTasks = [...currentTasks, taskId];
+
+    // If this task corresponds to a checkpoint question, sync checkpoint passed list
+    const linkedCheckpointId = TASK_TO_CHECKPOINT_MAP[taskId];
+    const currentCheckpoints = currentLessonProg.checkpointPassedIds || [];
+    const updatedCheckpoints = linkedCheckpointId && !currentCheckpoints.includes(linkedCheckpointId)
+      ? [...currentCheckpoints, linkedCheckpointId]
+      : currentCheckpoints;
 
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
         ...currentLessonProg,
-        completedTaskIds: [...currentLessonProg.completedTaskIds, taskId],
+        completedTaskIds: updatedTasks,
+        checkpointPassedIds: updatedCheckpoints,
         lastAccessed: Date.now(),
       },
     };
@@ -752,7 +773,12 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
   isTaskCompleted: (lessonSlug: string, taskId: string) => {
     const p = get().progress[lessonSlug];
-    return p ? p.completedTaskIds.includes(taskId) : false;
+    if (!p) return false;
+    const linkedCheckpoint = TASK_TO_CHECKPOINT_MAP[taskId];
+    return Boolean(
+      (Array.isArray(p.completedTaskIds) && p.completedTaskIds.includes(taskId)) ||
+      (linkedCheckpoint && Array.isArray(p.checkpointPassedIds) && p.checkpointPassedIds.includes(linkedCheckpoint))
+    );
   },
 
   isLessonCompleted: (lessonSlug: string) => {
@@ -937,11 +963,18 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
+    const currentTasks = currentLessonProg.completedTaskIds || [];
+    const linkedTaskIds = passedQuestionIds
+      .map((qid) => CHECKPOINT_TO_TASK_MAP[qid])
+      .filter((tid): tid is string => Boolean(tid));
+    const mergedTaskIds = Array.from(new Set([...currentTasks, ...linkedTaskIds]));
+
     const targetLesson = getLessonBySlug(lessonSlug);
     const updatedProg: LessonProgress = {
       ...currentLessonProg,
       checkpointPassedIds: passedQuestionIds,
       checkpointCodes: codes,
+      completedTaskIds: mergedTaskIds,
       lastAccessed: Date.now(),
     };
 

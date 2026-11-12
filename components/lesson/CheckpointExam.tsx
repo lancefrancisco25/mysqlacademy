@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { useLessonStore } from "@/lib/store";
 import { validateTask } from "@/lib/agents/validator";
 import { rollbackIfInTransaction, getTableNames } from "@/lib/sql-engine/engine";
+import { CHECKPOINT_TO_TASK_MAP } from "@/lib/lessons/problem-linking";
 import { cn } from "@/lib/utils";
 import type { CheckpointExam as CheckpointExamType, CheckpointQuestion, Task, QueryResult } from "@/types";
 
@@ -75,11 +76,15 @@ export function CheckpointExam({
     const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
 
     const passedIds = saved?.passedQuestionIds || prog?.checkpointPassedIds || [];
+    const completedTasks = prog?.completedTaskIds || [];
     const codes = saved?.codes || prog?.checkpointCodes || {};
 
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = !isExplicitlyReset && passedIds.includes(q.id);
+      const isPassed =
+        !isExplicitlyReset &&
+        (passedIds.includes(q.id) ||
+          (CHECKPOINT_TO_TASK_MAP[q.id] && completedTasks.includes(CHECKPOINT_TO_TASK_MAP[q.id])));
       const code = isPassed ? (codes[q.id] || q.solutionSQL || "") : (codes[q.id] || "");
       initial[q.id] = {
         code: code,
@@ -105,11 +110,15 @@ export function CheckpointExam({
     }
 
     const passedIds = saved?.passedQuestionIds || lessonProg?.checkpointPassedIds || [];
+    const completedTasks = lessonProg?.completedTaskIds || [];
     const codes = saved?.codes || lessonProg?.checkpointCodes || {};
 
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = !isExplicitlyReset && passedIds.includes(q.id);
+      const isPassed =
+        !isExplicitlyReset &&
+        (passedIds.includes(q.id) ||
+          (CHECKPOINT_TO_TASK_MAP[q.id] && completedTasks.includes(CHECKPOINT_TO_TASK_MAP[q.id])));
       const code = isPassed ? (codes[q.id] || q.solutionSQL || "") : (codes[q.id] || "");
       initial[q.id] = {
         code: code,
