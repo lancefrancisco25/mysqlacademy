@@ -43,6 +43,17 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
+  icons: {
+    icon: [
+      { url: "/icon", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    apple: [
+      { url: "/apple-icon", sizes: "180x180", type: "image/png" },
+    ],
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -53,10 +64,10 @@ export const metadata: Metadata = {
       "Master relational database engineering with instant query execution, automated syntax validation, and production-grade scenario blueprints. No setup required.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "MySQL Academy - Interactive SQL Sandbox & Curriculum",
+        alt: "MySQL Academy - Master MySQL by Writing Real Queries",
       },
     ],
   },
@@ -65,7 +76,7 @@ export const metadata: Metadata = {
     title: "MySQL Academy – Learn MySQL by Writing Real Queries",
     description:
       "Interactive in-browser database curriculum with instant feedback, ACID sandbox, and comprehensive SQL tracks.",
-    images: ["/og-image.png"],
+    images: ["/opengraph-image"],
     creator: "@mysqlacademy",
   },
   robots: {
@@ -89,10 +100,21 @@ const jsonLd = {
       "@id": `${siteUrl}/#organization`,
       name: "MySQL Academy",
       url: siteUrl,
-      logo: `${siteUrl}/favicon.ico`,
+      logo: `${siteUrl}/favicon.svg`,
       description:
         "Free interactive educational platform for learning MySQL, relational database architecture, and SQL query optimization.",
       sameAs: ["https://github.com/mysql-academy"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      url: siteUrl,
+      name: "MySQL Academy",
+      description: "Interactive In-Browser MySQL Database Curriculum & Terminal Sandbox",
+      publisher: {
+        "@id": `${siteUrl}/#organization`,
+      },
+      inLanguage: "en-US",
     },
     {
       "@type": "Course",

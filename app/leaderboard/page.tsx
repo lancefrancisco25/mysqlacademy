@@ -16,8 +16,11 @@ import {
   AlertCircle,
   Edit3,
   Check,
+  Share2,
+  Instagram,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { LeaderboardShareModal } from "@/components/leaderboard/LeaderboardShareModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -142,6 +145,7 @@ export default function LeaderboardPage() {
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const user = useLessonStore((s) => s.user);
   const progress = useLessonStore((s) => s.progress);
@@ -441,6 +445,16 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsShareModalOpen(true)}
+                className="text-xs h-9 font-semibold gap-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-500 hover:via-pink-500 hover:to-amber-400 text-white shadow-xs border-0 transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                title="Export rank card for Instagram Story and Feed"
+              >
+                <Instagram className="h-3.5 w-3.5" />
+                <span>Export Rank Card</span>
+              </Button>
               <Link href="/learn">
                 <Button
                   variant="outline"
@@ -524,10 +538,19 @@ export default function LeaderboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground flex-wrap">
               <span>Points: <strong className="text-foreground">{userStats.scoreAllTime}</strong></span>
               <span>•</span>
               <span>Rank: <strong className="text-emerald-500">{currentUserRank ? `#${currentUserRank}` : "Unranked"}</strong></span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsShareModalOpen(true)}
+                className="h-6 px-2 text-[11px] gap-1 text-purple-600 dark:text-purple-400 hover:text-purple-500 hover:bg-purple-500/10 font-sans font-medium"
+              >
+                <Share2 className="h-3 w-3" />
+                <span>Share Card</span>
+              </Button>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -587,22 +610,34 @@ export default function LeaderboardPage() {
             ) : (
               <EyeOff className="h-4 w-4 shrink-0 text-zinc-500 mt-0.5" />
             )}
-            <div>
-              {isOptedIn ? (
-                <span>
-                  <strong>Your profile is visible on the leaderboard.</strong>{" "}
-                  {currentUserRank
-                    ? `You are currently ranked #${currentUserRank} with ${
-                        period === "all-time"
-                          ? userStats.scoreAllTime
-                          : userStats.scoreThisWeek
-                      } points.`
-                    : "Complete lesson tasks to earn your position."}
-                </span>
-              ) : (
-                <span>
-                  <strong>Your profile is hidden from the public leaderboard.</strong> You can still view cohort rankings below. Toggle the switch above at any time to publish your rank and score.
-                </span>
+            <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                {isOptedIn ? (
+                  <span>
+                    <strong>Your profile is visible on the leaderboard.</strong>{" "}
+                    {currentUserRank
+                      ? `You are currently ranked #${currentUserRank} with ${
+                          period === "all-time"
+                            ? userStats.scoreAllTime
+                            : userStats.scoreThisWeek
+                        } points.`
+                      : "Complete lesson tasks to earn your position."}
+                  </span>
+                ) : (
+                  <span>
+                    <strong>Your profile is hidden from the public leaderboard.</strong> You can still view cohort rankings below. Toggle the switch above at any time to publish your rank and score.
+                  </span>
+                )}
+              </div>
+              {isOptedIn && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsShareModalOpen(true)}
+                  className="h-7 px-3 text-xs shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold gap-1.5 shadow-xs"
+                >
+                  <Instagram className="h-3.5 w-3.5" />
+                  <span>Share Story</span>
+                </Button>
               )}
             </div>
           </div>
@@ -912,9 +947,20 @@ export default function LeaderboardPage() {
                                 {entry.name}
                               </span>
                               {entry.isCurrentUser && (
-                                <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 text-[10px] font-mono py-0 px-1.5 h-4">
-                                  You
-                                </Badge>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 text-[10px] font-mono py-0 px-1.5 h-4">
+                                    You
+                                  </Badge>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsShareModalOpen(true)}
+                                    className="text-purple-600 dark:text-purple-400 hover:text-purple-500 p-0.5 rounded hover:bg-purple-500/10 transition-colors"
+                                    title="Export Instagram Story Card"
+                                    aria-label="Export Instagram Story Card"
+                                  >
+                                    <Share2 className="h-3 w-3" />
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -964,6 +1010,15 @@ export default function LeaderboardPage() {
           </div>
         </section>
       </main>
+
+      {/* Instagram-Style Story & Post Share Card Modal */}
+      <LeaderboardShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        user={user}
+        userStats={userStats}
+        rank={currentUserRank}
+      />
       </AuthBarrier>
     </div>
   );
