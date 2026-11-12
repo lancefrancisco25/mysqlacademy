@@ -358,22 +358,6 @@ export function ConceptPrimer({
                 💡 <strong className="text-sky-950 dark:text-sky-100">Explanation</strong>: {lesson.intuitionCheck.explanation}
               </div>
             )}
-
-            {/* Direct navigation to try in Interactive Lab Terminal */}
-            <div className="pt-3 border-t border-sky-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="text-xs text-muted-foreground font-sans">
-                💡 <span className="font-semibold text-foreground">Ready to try it live?</span> Jump straight into the interactive terminal to experiment hands-on.
-              </div>
-              <Button
-                size="sm"
-                onClick={onStartLab}
-                className="bg-sky-600 hover:bg-sky-500 text-white gap-2 text-xs font-mono font-medium shadow-sm shrink-0"
-              >
-                <Terminal className="h-3.5 w-3.5" />
-                Open Interactive Lab Terminal
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
           </div>
         )}
 
