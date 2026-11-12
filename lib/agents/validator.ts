@@ -21,6 +21,15 @@ export function validateTask(
   result: QueryResult | null
 ): ValidationResult {
   const rule = task.validation;
+  const tables = getTableNames();
+
+  // Determine if the target schema/table is present in the database catalog
+  const targetTable = rule.table;
+  const isTablePresent = targetTable
+    ? tables.some((t) => t.toLowerCase() === targetTable.toLowerCase())
+    : (rule.type === "query_result" && rule.query
+        ? tables.some((t) => new RegExp(`\\b${t}\\b`, "i").test(rule.query!))
+        : tables.some((t) => new RegExp(`\\b${t}\\b`, "i").test(query || "")));
 
   // 1. Verify student query pattern if specified (handles multi-line queries gracefully)
   if (rule.queryPattern) {
@@ -48,38 +57,40 @@ export function validateTask(
     }
   }
 
-  // 2. Verify returned columns if specified (lenient checking)
+  // 2. Verify returned columns if specified (strict when table is present, tolerant matching)
   if (rule.expectedColumns && rule.expectedColumns.length > 0) {
     if (!result || !result.columns || result.columns.length === 0) {
-      return { passed: false, reason: "Query returned no columns." };
-    }
+      if (isTablePresent) {
+        return { passed: false, reason: "Query returned no columns from the table." };
+      }
+    } else {
+      // Normalize column names: strip table qualifiers, quotes, backticks, whitespace, and lowercase
+      const normalizeCol = (c: string) =>
+        c.split(".").pop()!.replace(/[`'"]/g, "").trim().toLowerCase();
 
-    // Normalize column names: strip table qualifiers, quotes, backticks, whitespace, and lowercase
-    const normalizeCol = (c: string) =>
-      c.split(".").pop()!.replace(/[`'"]/g, "").trim().toLowerCase();
+      const actualCols = result.columns.map(normalizeCol);
+      const expectedNormalized = rule.expectedColumns.map(normalizeCol);
 
-    const actualCols = result.columns.map(normalizeCol);
-    const expectedNormalized = rule.expectedColumns.map(normalizeCol);
+      // 1. Direct or normalized name match
+      const hasAllDirect = expectedNormalized.every((exp) => actualCols.includes(exp));
 
-    // 1. Direct or normalized name match
-    const hasAllDirect = expectedNormalized.every((exp) => actualCols.includes(exp));
+      // 2. Check if student query text references the column (e.g. aliased: "SELECT col AS alias")
+      const queryLower = (query || "").toLowerCase();
+      const queryMentionsAll = expectedNormalized.every((exp) => {
+        const colRegex = new RegExp(`\\b${exp}\\b`, "i");
+        return colRegex.test(queryLower);
+      });
 
-    // 2. Check if student query text references the column (e.g. aliased: "SELECT col AS alias")
-    const queryLower = (query || "").toLowerCase();
-    const queryMentionsAll = expectedNormalized.every((exp) => {
-      const colRegex = new RegExp(`\\b${exp}\\b`, "i");
-      return colRegex.test(queryLower);
-    });
+      // 3. Tolerant match: If direct match passes, or query explicitly references all columns,
+      // or column count matches and there is an expectedResult that satisfies value verification
+      const countSatisfied = result.columns.length >= rule.expectedColumns.length;
 
-    // 3. Tolerant match: If direct match passes, or query explicitly references all columns,
-    // or column count matches and there is an expectedResult that satisfies value verification
-    const countSatisfied = result.columns.length >= rule.expectedColumns.length;
-
-    if (!hasAllDirect && !queryMentionsAll && (!rule.expectedResult || !countSatisfied)) {
-      return {
-        passed: false,
-        reason: `Output should include data for: ${rule.expectedColumns.join(", ")}.`,
-      };
+      if (!hasAllDirect && !queryMentionsAll && (!rule.expectedResult || !countSatisfied)) {
+        return {
+          passed: false,
+          reason: `Output should include data for: ${rule.expectedColumns.join(", ")}.`,
+        };
+      }
     }
   }
 
@@ -96,11 +107,11 @@ export function validateTask(
 
   switch (rule.type) {
     case "table_exists":
-      return validateTableExists(rule);
+      return validateTableExists(rule, query, isTablePresent);
     case "table_not_exists":
       return validateTableNotExists(rule);
     case "column_exists":
-      return validateColumnExists(rule);
+      return validateColumnExists(rule, query, isTablePresent);
     case "row_count":
       return validateRowCount(rule);
     case "row_count_gte":
@@ -108,7 +119,7 @@ export function validateTask(
     case "value_check":
       return validateValueCheck(rule);
     case "query_result":
-      return validateQueryResult(rule, result);
+      return validateQueryResult(rule, result, query, isTablePresent);
     case "custom":
       return { passed: false, reason: "Custom validation not implemented" };
     default:
@@ -116,12 +127,19 @@ export function validateTask(
   }
 }
 
-function validateTableExists(rule: ValidationRule): ValidationResult {
+function validateTableExists(rule: ValidationRule, query?: string, isTablePresent?: boolean): ValidationResult {
   if (!rule.table) return { passed: false, reason: "No table specified" };
   const tables = getTableNames();
   const lowerTarget = rule.table.toLowerCase();
   if (tables.some((t) => t.toLowerCase() === lowerTarget)) {
     return { passed: true };
+  }
+  // When table is not present in database catalog: be not strict, verify DDL blueprint
+  if (query) {
+    const tablePattern = new RegExp(`CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?["\`]?${rule.table}["\`]?`, "i");
+    if (tablePattern.test(query)) {
+      return { passed: true };
+    }
   }
   return {
     passed: false,
@@ -142,16 +160,29 @@ function validateTableNotExists(rule: ValidationRule): ValidationResult {
   };
 }
 
-function validateColumnExists(rule: ValidationRule): ValidationResult {
+function validateColumnExists(rule: ValidationRule, query?: string, isTablePresent?: boolean): ValidationResult {
   if (!rule.table || !rule.column)
     return { passed: false, reason: "No table/column specified" };
   const tables = getTableNames();
   const matchedTable = tables.find((t) => t.toLowerCase() === rule.table!.toLowerCase()) || rule.table;
   const info = getTableInfo(matchedTable);
-  if (!info) return { passed: false, reason: `Table '${rule.table}' not found` };
-  const colNames = info.values.map((r) => String(r[1]).toLowerCase());
-  if (colNames.includes(rule.column.toLowerCase())) {
-    return { passed: true };
+  if (info) {
+    const colNames = info.values.map((r) => String(r[1]).toLowerCase());
+    if (colNames.includes(rule.column.toLowerCase())) {
+      return { passed: true };
+    }
+    return {
+      passed: false,
+      reason: `Column '${rule.column}' not found in table '${rule.table}'.`,
+    };
+  }
+  // When table is not present in database: be not strict, check if query defines or describes column
+  if (query) {
+    const colPattern = new RegExp(`\\b${rule.column}\\b`, "i");
+    const descPattern = new RegExp(`^(?:DESCRIBE|DESC)\\s+["\`]?${rule.table}["\`]?`, "i");
+    if (colPattern.test(query) || descPattern.test(query)) {
+      return { passed: true };
+    }
   }
   return {
     passed: false,
@@ -270,32 +301,43 @@ function compareValues(
   }
 
   // General row-by-row matrix comparison
-  let matchedRows = 0;
+  let allPositionalMatch = true;
   for (let i = 0; i < expected.length; i++) {
-    let rowMatch = true;
     for (let j = 0; j < expected[i].length; j++) {
       if (!valuesMatch(actual[i]?.[j], expected[i]?.[j])) {
-        rowMatch = false;
+        allPositionalMatch = false;
         break;
       }
     }
-    if (rowMatch) {
-      matchedRows++;
-    } else {
-      if (matchedRows > 0) {
-        return {
-          passed: false,
-          reason: `Partially correct (${matchedRows}/${expected.length} rows match). Row ${i + 1} does not match expected output.`,
-        };
+    if (!allPositionalMatch) break;
+  }
+  if (allPositionalMatch) return { passed: true };
+
+  // Order-independent check (all expected rows exist in actual in some permutation)
+  const remainingActual = [...actual];
+  let allFound = true;
+  for (const expRow of expected) {
+    const matchIdx = remainingActual.findIndex((actRow) => {
+      for (let j = 0; j < expRow.length; j++) {
+        if (!valuesMatch(actRow[j], expRow[j])) return false;
       }
-      return {
-        passed: false,
-        reason: description || `Row ${i + 1} does not match expected values.`,
-      };
+      return true;
+    });
+    if (matchIdx !== -1) {
+      remainingActual.splice(matchIdx, 1);
+    } else {
+      allFound = false;
+      break;
     }
   }
+  if (allFound) {
+    return { passed: true };
+  }
 
-  return { passed: true };
+  return {
+    passed: false,
+    reason: description || "Returned query results do not match expected values.",
+  };
 }
 
 function validateValueCheck(rule: ValidationRule): ValidationResult {
@@ -314,50 +356,149 @@ function validateValueCheck(rule: ValidationRule): ValidationResult {
 
 function validateQueryResult(
   rule: ValidationRule,
-  studentResult?: QueryResult | null
+  studentResult?: QueryResult | null,
+  query?: string,
+  isTablePresent?: boolean
 ): ValidationResult {
-  // 1. If student executed a query that produced a result, test that result first!
-  if (studentResult && studentResult.values && studentResult.values.length > 0) {
-    if (rule.expectedResult) {
-      const comp = compareValues(studentResult.values, rule.expectedResult, rule.description);
-      if (comp.passed) return { passed: true };
-    } else if (rule.minReturnedRows !== undefined) {
-      if (studentResult.values.length >= rule.minReturnedRows) {
-        return { passed: true };
+  // ── When the target schema/table IS PRESENT in the database: STRICT GRADING ──
+  if (isTablePresent) {
+    const isMutationResult = Boolean(
+      studentResult &&
+      studentResult.columns &&
+      studentResult.columns.length === 1 &&
+      (studentResult.columns[0].toLowerCase() === "affected_rows" ||
+       studentResult.columns[0].toLowerCase() === "status")
+    );
+
+    // 1. If student executed a SELECT or data-producing query:
+    if (studentResult && studentResult.values && studentResult.values.length > 0 && !isMutationResult) {
+      if (rule.expectedResult) {
+        // Check if rule.query is a COUNT(*) check (e.g. [[5]], [[4]], [[7]], [[3]])
+        const isCountCheck =
+          rule.expectedResult.length === 1 &&
+          rule.expectedResult[0].length === 1 &&
+          typeof rule.expectedResult[0][0] === "number" &&
+          rule.query &&
+          /COUNT\s*\(/i.test(rule.query);
+
+        if (isCountCheck) {
+          const expectedCount = rule.expectedResult[0][0] as number;
+          if (studentResult.values.length !== expectedCount) {
+            return {
+              passed: false,
+              reason: `Expected query to return ${expectedCount} rows, got ${studentResult.values.length}.`,
+            };
+          }
+          return { passed: true };
+        }
+
+        // Exact or row-by-row matrix comparison
+        const comp = compareValues(studentResult.values, rule.expectedResult, rule.description);
+        if (comp.passed) {
+          return { passed: true };
+        }
+
+        // Check if top row or specific scalar matches (e.g. top salary in LIMIT 3)
+        if (
+          rule.expectedResult.length === 1 &&
+          studentResult.values.length > 0 &&
+          studentResult.values[0].some((val) => valuesMatch(val, rule.expectedResult![0][0]))
+        ) {
+          if (rule.minReturnedRows !== undefined && studentResult.values.length < rule.minReturnedRows) {
+            return {
+              passed: false,
+              reason: `Expected query to return at least ${rule.minReturnedRows} rows, got ${studentResult.values.length}.`,
+            };
+          }
+          return { passed: true };
+        }
+
+        return {
+          passed: false,
+          reason: comp.reason || "Returned query results do not match expected specification.",
+        };
       }
-    } else if (!rule.query) {
+
+      if (rule.minReturnedRows !== undefined) {
+        if (studentResult.values.length < rule.minReturnedRows) {
+          return {
+            passed: false,
+            reason: `Expected query to return at least ${rule.minReturnedRows} rows, got ${studentResult.values.length}.`,
+          };
+        }
+      }
+
+      // If rule.query is provided, execute it to verify state
+      if (rule.query) {
+        try {
+          const res = executeSQL(rule.query);
+          if (!res || res.values.length === 0) {
+            return { passed: false, reason: rule.description || "Verification query returned empty." };
+          }
+          if (rule.expectedResult) {
+            const comp = compareValues(res.values, rule.expectedResult, rule.description);
+            if (!comp.passed) {
+              return { passed: false, reason: comp.reason || "Verification state not satisfied." };
+            }
+          }
+        } catch (e: any) {
+          return { passed: false, reason: `Verification error: ${e.message}` };
+        }
+      }
+
+      return { passed: true };
+    }
+
+    // 2. If student query returned 0 rows (e.g. DML mutation: INSERT, UPDATE, DELETE, CREATE INDEX):
+    if (rule.query) {
+      try {
+        const result = executeSQL(rule.query);
+        if (!result || result.values.length === 0) {
+          return { passed: false, reason: rule.description || "Verification query returned empty." };
+        }
+        if (rule.expectedResult) {
+          return compareValues(result.values, rule.expectedResult, rule.description);
+        }
+        return { passed: true };
+      } catch (e: any) {
+        return { passed: false, reason: `Verification failed: ${e.message}` };
+      }
+    }
+
+    return { passed: false, reason: "Query returned no data matching criteria." };
+  }
+
+  // ── When the target schema/table is NOT PRESENT: NOT STRICT ──
+  // (e.g. hypothetical queries, table creation DDL, or catalog introspection)
+  if (rule.queryPattern && query) {
+    const raw = query.trim();
+    const pattern =
+      typeof rule.queryPattern === "string"
+        ? new RegExp(rule.queryPattern, "i")
+        : new RegExp(rule.queryPattern.source, rule.queryPattern.flags.replace(/g/g, ""));
+    const normalized = raw.replace(/\s+/g, " ");
+    if (pattern.test(raw) || pattern.test(normalized)) {
       return { passed: true };
     }
   }
 
-  // 2. If a verification query is defined, execute it against the database
   if (rule.query) {
     try {
       const result = executeSQL(rule.query);
-      if (!result || result.values.length === 0) {
-        return { passed: false, reason: rule.description || "Verification query returned empty." };
+      if (result && result.values.length > 0) {
+        if (rule.expectedResult) {
+          const comp = compareValues(result.values, rule.expectedResult, rule.description);
+          if (comp.passed) return { passed: true };
+        } else {
+          return { passed: true };
+        }
       }
-
-      if (rule.expectedResult) {
-        return compareValues(result.values, rule.expectedResult, rule.description);
-      }
-
-      return { passed: true };
-    } catch (e: any) {
-      return { passed: false, reason: `Verification failed: ${e.message}` };
-    }
+    } catch {}
   }
 
-  // 3. Fallback check on studentResult row count
-  if (studentResult && rule.minReturnedRows !== undefined) {
-    if (studentResult.values.length >= rule.minReturnedRows) {
-      return { passed: true };
-    }
-    return {
-      passed: false,
-      reason: `Expected at least ${rule.minReturnedRows} rows, got ${studentResult.values.length}.`,
-    };
+  if (studentResult && studentResult.values && studentResult.values.length > 0) {
+    return { passed: true };
   }
 
-  return { passed: false, reason: "No verification query or result available." };
+  return { passed: false, reason: "Requirement criteria not yet met." };
 }

@@ -23,9 +23,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLessonStore } from "@/lib/store";
 import { validateTask } from "@/lib/agents/validator";
-import { rollbackIfInTransaction } from "@/lib/sql-engine/engine";
+import { rollbackIfInTransaction, getTableNames } from "@/lib/sql-engine/engine";
 import { cn } from "@/lib/utils";
-import type { CheckpointExam as CheckpointExamType, CheckpointQuestion, Task } from "@/types";
+import type { CheckpointExam as CheckpointExamType, CheckpointQuestion, Task, QueryResult } from "@/types";
 
 interface CheckpointExamProps {
   exam: CheckpointExamType;
@@ -157,72 +157,90 @@ export function CheckpointExam({
     const currentCode = questionStates[q.id]?.code || "";
     if (!currentCode.trim()) return;
 
+    const tables = getTableNames();
+    const targetTable = q.validation.table;
+    const isTablePresent = targetTable
+      ? tables.some((t) => t.toLowerCase() === targetTable.toLowerCase())
+      : (q.validation.type === "query_result" && q.validation.query
+          ? tables.some((t) => new RegExp(`\\b${t}\\b`, "i").test(q.validation.query!))
+          : tables.some((t) => new RegExp(`\\b${t}\\b`, "i").test(currentCode)));
+
+    let result: QueryResult | null = null;
+    let execError: Error | null = null;
+
     try {
       rollbackIfInTransaction();
-      const result = executeQuery(currentCode, { skipTaskValidation: true });
-
-      // Construct a Task-like structure for the validator
-      const mockTask: Task = {
-        id: q.id,
-        title: q.title,
-        description: q.prompt,
-        validation: q.validation,
-      };
-
-      const valResult = validateTask(mockTask, currentCode, result);
-
-      if (valResult.passed) {
-        setQuestionStates((prev) => {
-          const next = {
-            ...prev,
-            [q.id]: {
-              ...prev[q.id],
-              passed: true,
-              feedback: "✓ Checkpoint Passed! Output meets required specification.",
-              showHint: false,
-              showSolution: false, // Do not open hint or solution automatically unless user specifically clicks it
-            },
-          };
-          if (typeof window !== "undefined") {
-            try {
-              const passedIds = exam.questions.filter((item) => next[item.id]?.passed).map((item) => item.id);
-              if (passedIds.length === exam.questions.length) {
-                localStorage.removeItem(`mysql-academy-checkpoint-reset-${exam.id}`);
-              }
-              const codes: Record<string, string> = {};
-              exam.questions.forEach((item) => {
-                codes[item.id] = next[item.id]?.code || "";
-              });
-              if (currentLesson) {
-                saveCheckpointProgress(
-                  exam.id,
-                  currentLesson.slug,
-                  passedIds,
-                  codes,
-                  passedIds.length === exam.questions.length
-                );
-              }
-            } catch {}
-          }
-          return next;
-        });
-      } else {
-        setQuestionStates((prev) => ({
-          ...prev,
-          [q.id]: {
-            ...prev[q.id],
-            passed: false,
-            feedback: valResult.reason || "Requirement criteria not yet satisfied.",
-          },
-        }));
-      }
+      result = executeQuery(currentCode, { skipTaskValidation: true });
     } catch (err: any) {
+      execError = err;
+    }
+
+    // STRICT CHECK: When the table/schema IS present in the database,
+    // any SQL runtime error must strictly fail the checkpoint!
+    if (isTablePresent && execError) {
       setQuestionStates((prev) => ({
         ...prev,
         [q.id]: {
           ...prev[q.id],
           passed: false,
-          feedback: `MySQL Execution Error: ${err.message || "Unknown error"}`,
+          feedback: `MySQL Execution Error: ${execError!.message || "Unknown error"}`,
+        },
+      }));
+      return;
+    }
+
+    // Construct a Task-like structure for the validator
+    const mockTask: Task = {
+      id: q.id,
+      title: q.title,
+      description: q.prompt,
+      validation: q.validation,
+    };
+
+    const valResult = validateTask(mockTask, currentCode, result);
+
+    if (valResult.passed) {
+      setQuestionStates((prev) => {
+        const next = {
+          ...prev,
+          [q.id]: {
+            ...prev[q.id],
+            passed: true,
+            feedback: "✓ Checkpoint Passed! Output meets required specification.",
+            showHint: false,
+            showSolution: false, // Do not open hint or solution automatically unless user specifically clicks it
+          },
+        };
+        if (typeof window !== "undefined") {
+          try {
+            const passedIds = exam.questions.filter((item) => next[item.id]?.passed).map((item) => item.id);
+            if (passedIds.length === exam.questions.length) {
+              localStorage.removeItem(`mysql-academy-checkpoint-reset-${exam.id}`);
+            }
+            const codes: Record<string, string> = {};
+            exam.questions.forEach((item) => {
+              codes[item.id] = next[item.id]?.code || "";
+            });
+            if (currentLesson) {
+              saveCheckpointProgress(
+                exam.id,
+                currentLesson.slug,
+                passedIds,
+                codes,
+                passedIds.length === exam.questions.length
+              );
+            }
+          } catch {}
+        }
+        return next;
+      });
+    } else {
+      setQuestionStates((prev) => ({
+        ...prev,
+        [q.id]: {
+          ...prev[q.id],
+          passed: false,
+          feedback: valResult.reason || (execError ? `Execution Notice: ${execError.message}` : "Requirement criteria not yet satisfied."),
         },
       }));
     }

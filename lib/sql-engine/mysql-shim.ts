@@ -125,8 +125,20 @@ export function translateMySQL(
   // ── Syntax Translation ──────────────────────────────────────────────
   let sql = trimmed;
 
-  // AUTO_INCREMENT → AUTOINCREMENT (and handle INTEGER PRIMARY KEY pattern)
+  // Normalize MySQL AUTO_INCREMENT and PRIMARY KEY order for SQLite (SQLite requires: INTEGER PRIMARY KEY AUTOINCREMENT)
+  sql = sql.replace(/\bAUTO_INCREMENT\s+PRIMARY\s+KEY\b/gi, "PRIMARY KEY AUTOINCREMENT");
+  sql = sql.replace(/\bAUTOINCREMENT\s+PRIMARY\s+KEY\b/gi, "PRIMARY KEY AUTOINCREMENT");
+  sql = sql.replace(/\bPRIMARY\s+KEY\s+AUTO_INCREMENT\b/gi, "PRIMARY KEY AUTOINCREMENT");
   sql = sql.replace(/\bAUTO_INCREMENT\b/gi, "AUTOINCREMENT");
+
+  // Strip MySQL table storage engine and character set options
+  sql = sql.replace(/\)\s*ENGINE\s*=\s*[a-zA-Z0-9_]+[^;]*/gi, ")");
+  sql = sql.replace(/\)\s*DEFAULT\s+CHARSET\s*=\s*[a-zA-Z0-9_]+[^;]*/gi, ")");
+
+  // In SQLite, ALTER TABLE ADD COLUMN cannot accept non-constant defaults (e.g. date('now') or CURRENT_TIMESTAMP)
+  if (/\bALTER\s+TABLE\s+.*?\bADD\s+(?:COLUMN\s+)?/i.test(sql)) {
+    sql = sql.replace(/\bDEFAULT\s+.*?(?=;|$)/gi, "");
+  }
 
   // INT / INT(...) → INTEGER
   sql = sql.replace(/\bINT\s*\(\s*\d+\s*\)/gi, "INTEGER");

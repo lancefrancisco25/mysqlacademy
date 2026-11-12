@@ -189,7 +189,7 @@ export const crudLessons: Lesson[] = [
           validation: {
             type: "row_count_gte",
             table: "students",
-            expectedCount: 5,
+            expectedCount: 4,
           },
         },
       ],
@@ -405,6 +405,7 @@ export const crudLessons: Lesson[] = [
             expectedCount: 10,
             queryPattern: /SELECT.*FROM\s+employees/i,
             expectedColumns: ["first_name", "department", "salary"],
+            minReturnedRows: 10,
           },
         },
         {
@@ -419,6 +420,8 @@ export const crudLessons: Lesson[] = [
             queryPattern: /ORDER\s+BY.*salary.*DESC.*LIMIT\s+3/i,
             query: "SELECT salary FROM employees ORDER BY salary DESC LIMIT 1",
             expectedResult: [[112000]],
+            minReturnedRows: 3,
+            expectedColumns: ["first_name", "salary"],
           },
         },
       ],

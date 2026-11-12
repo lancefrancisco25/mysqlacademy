@@ -173,6 +173,25 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         }
       }
 
+      // Determine if schema/table is present in the database catalog
+      const tablesBefore = getTableNames();
+      const hasSchemaSetup = Boolean(exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim().length > 0);
+      const isTablePresent =
+        hasSchemaSetup ||
+        (() => {
+          const previewName = exercise.previewTable?.tableName;
+          const ruleTables = exercise.requirements
+            .map((r) => r.validationRule?.table)
+            .filter((t): t is string => Boolean(t));
+          const allCandidates = [
+            ...(previewName ? previewName.split(/\s*[\/,]\s*/) : []),
+            ...ruleTables,
+          ];
+          return allCandidates.some((tbl) =>
+            tablesBefore.some((t) => t.toLowerCase() === tbl.toLowerCase())
+          );
+        })();
+
       // 3. Execute student's SQL command
       let result: QueryResult | null = null;
       let runtimeError: Error | null = null;
@@ -183,104 +202,146 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         runtimeError = err;
       }
 
+      // STRICT CHECK: If the table is present in the database, any execution error must fail immediately!
+      if (isTablePresent && runtimeError) {
+        setCompletedRequirements([]);
+        if (currentLesson) {
+          saveScenarioProgress(exercise.id, currentLesson.slug, false, sqlCode, []);
+        }
+        setExecutionOutput({
+          status: "incorrect",
+          message: `MySQL Execution Error: ${runtimeError.message || "Failed to execute query on active schema."}`,
+          columns: undefined,
+          values: undefined,
+        });
+        return;
+      }
+
       const tables = getTableNames();
       const lowerCode = sqlCode.toLowerCase().trim();
-
-      // 4. Evaluate each requirement via validationRule, syntaxPattern, or smart heuristics
       const satisfied: string[] = [];
 
-      exercise.requirements.forEach((req) => {
-        let passed = false;
+      if (isTablePresent) {
+        // ── STRICT MODE: Target table exists ──
+        // Both validationRule (if specified) and syntaxPattern (if specified) must strictly pass.
+        // Heuristic loose fallthrough is disabled.
+        exercise.requirements.forEach((req) => {
+          let passed = true;
 
-        // A. If a validation rule is provided:
-        if (req.validationRule) {
-          const rule = req.validationRule;
-          if (rule.type === "table_exists" && rule.table) {
-            passed = tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase());
-          } else if (rule.type === "column_exists" && rule.table && rule.column) {
-            const info = getTableInfo(rule.table);
-            passed = Boolean(
-              info &&
-                info.values &&
-                info.values.some(
-                  (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
-                )
-            );
-          } else if (rule.type === "query_result" && rule.query) {
-            try {
-              const res = executeQuery(rule.query, { skipTaskValidation: true });
-              if (rule.expectedResult && res) {
-                passed = JSON.stringify(res.values) === JSON.stringify(rule.expectedResult);
-              } else if (rule.minReturnedRows !== undefined && res) {
-                passed = res.values.length >= rule.minReturnedRows;
-              } else {
-                passed = Boolean(res && res.values.length > 0);
+          // 1. Validation Rule Check
+          if (req.validationRule) {
+            const rule = req.validationRule;
+            if (rule.type === "table_exists" && rule.table) {
+              passed = tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase());
+            } else if (rule.type === "column_exists" && rule.table && rule.column) {
+              const info = getTableInfo(rule.table);
+              passed = Boolean(
+                info &&
+                  info.values &&
+                  info.values.some(
+                    (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
+                  )
+              );
+            } else if (rule.type === "query_result" && rule.query) {
+              try {
+                const res = executeQuery(rule.query, { skipTaskValidation: true });
+                if (!res) {
+                  passed = false;
+                } else if (rule.expectedResult) {
+                  passed = JSON.stringify(res.values) === JSON.stringify(rule.expectedResult);
+                } else if (rule.minReturnedRows !== undefined) {
+                  passed = res.values.length >= rule.minReturnedRows;
+                } else {
+                  passed = res.values.length > 0;
+                }
+              } catch {
+                passed = false;
               }
-            } catch {
-              passed = false;
             }
           }
-        }
 
-        // B. If a syntax pattern / keyword is specified:
-        if (!passed && req.syntaxPattern) {
-          if (typeof req.syntaxPattern === "string") {
-            passed = lowerCode.includes(req.syntaxPattern.toLowerCase());
-          } else {
-            // Remove 'g' flag to avoid stateful lastIndex issues
-            const cleanFlags = req.syntaxPattern.flags.replace(/g/g, "");
-            const safeRegex = new RegExp(req.syntaxPattern.source, cleanFlags);
-            passed = safeRegex.test(sqlCode);
+          // 2. Syntax Pattern Check
+          if (passed && req.syntaxPattern) {
+            if (typeof req.syntaxPattern === "string") {
+              passed = lowerCode.includes(req.syntaxPattern.toLowerCase());
+            } else {
+              const cleanFlags = req.syntaxPattern.flags.replace(/g/g, "");
+              const safeRegex = new RegExp(req.syntaxPattern.source, cleanFlags);
+              passed = safeRegex.test(sqlCode);
+            }
           }
-        }
 
-        // C. Smart heuristic analysis based on requirement text & syntax
-        if (!passed) {
-          const reqLower = req.text.toLowerCase();
-
-          // Check for email literals
-          const emails = reqLower.match(/[\w.-]+@[\w.-]+\.\w+/g);
-          if (emails && emails.some((e) => lowerCode.includes(e.toLowerCase()))) {
-            passed = true;
-          } else if (reqLower.includes("start transaction") && lowerCode.includes("start transaction")) {
-            passed = true;
-          } else if (reqLower.includes("commit") && lowerCode.includes("commit")) {
-            passed = true;
-          } else if (reqLower.includes("create index") && lowerCode.includes("create index")) {
-            passed = true;
-          } else if (reqLower.includes("group by") && lowerCode.includes("group by")) {
-            passed = true;
-          } else if (reqLower.includes("having") && lowerCode.includes("having")) {
-            passed = true;
-          } else if (reqLower.includes("left join") && lowerCode.includes("left join")) {
-            passed = true;
-          } else if (reqLower.includes("inner join") && (lowerCode.includes("join") || lowerCode.includes("inner join"))) {
-            passed = true;
-          } else if (reqLower.includes("alter table") && lowerCode.includes("alter table")) {
-            passed = true;
-          } else if (reqLower.includes("default") && lowerCode.includes("default")) {
-            passed = true;
-          } else if (reqLower.includes("not null") && lowerCode.includes("not null")) {
-            passed = true;
-          } else if (reqLower.includes("primary key") && lowerCode.includes("primary key")) {
-            passed = true;
-          } else if (reqLower.includes("check") && lowerCode.includes("check")) {
-            passed = true;
-          } else if (reqLower.includes("unique") && lowerCode.includes("unique")) {
-            passed = true;
-          } else if (reqLower.includes("count") && lowerCode.includes("count")) {
-            passed = true;
-          } else if (reqLower.includes("sum") && lowerCode.includes("sum")) {
-            passed = true;
-          } else if (reqLower.includes("avg") && lowerCode.includes("avg")) {
-            passed = true;
+          if (passed) {
+            satisfied.push(req.id);
           }
-        }
+        });
+      } else {
+        // ── LENIENT MODE: Table is NOT present initially (e.g. DDL blueprints from scratch) ──
+        // Validate student's MySQL DDL blueprint gracefully even if SQLite engine has dialect quirks.
+        exercise.requirements.forEach((req) => {
+          let passed = false;
 
-        if (passed) {
-          satisfied.push(req.id);
-        }
-      });
+          // A. If validationRule is provided:
+          if (req.validationRule) {
+            const rule = req.validationRule;
+            if (rule.type === "table_exists" && rule.table) {
+              passed =
+                tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase()) ||
+                new RegExp(`CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?["\`]?${rule.table}["\`]?`, "i").test(sqlCode);
+            } else if (rule.type === "column_exists" && rule.table && rule.column) {
+              const info = getTableInfo(rule.table);
+              const existsInEngine = Boolean(
+                info &&
+                  info.values &&
+                  info.values.some(
+                    (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
+                  )
+              );
+              passed =
+                existsInEngine ||
+                new RegExp(`\\b${rule.column}\\b`, "i").test(sqlCode);
+            } else if (rule.type === "query_result" && rule.query) {
+              try {
+                const res = executeQuery(rule.query, { skipTaskValidation: true });
+                if (res && res.values.length > 0) passed = true;
+              } catch {
+                passed = false;
+              }
+            }
+          }
+
+          // B. If a syntax pattern / keyword is specified:
+          if (!passed && req.syntaxPattern) {
+            if (typeof req.syntaxPattern === "string") {
+              passed = lowerCode.includes(req.syntaxPattern.toLowerCase());
+            } else {
+              const cleanFlags = req.syntaxPattern.flags.replace(/g/g, "");
+              const safeRegex = new RegExp(req.syntaxPattern.source, cleanFlags);
+              passed = safeRegex.test(sqlCode);
+            }
+          }
+
+          // C. Smart heuristic analysis for table blueprint if neither matched
+          if (!passed) {
+            const reqLower = req.text.toLowerCase();
+            if (reqLower.includes("primary key") && lowerCode.includes("primary key")) {
+              passed = true;
+            } else if (reqLower.includes("not null") && lowerCode.includes("not null")) {
+              passed = true;
+            } else if (reqLower.includes("unique") && lowerCode.includes("unique")) {
+              passed = true;
+            } else if (reqLower.includes("default") && lowerCode.includes("default")) {
+              passed = true;
+            } else if (reqLower.includes("check") && lowerCode.includes("check")) {
+              passed = true;
+            }
+          }
+
+          if (passed) {
+            satisfied.push(req.id);
+          }
+        });
+      }
 
       setCompletedRequirements(satisfied);
 

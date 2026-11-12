@@ -40,10 +40,18 @@ export async function getSqlJsInstance(): Promise<SqlJsStatic> {
       const config = wasmBinary
         ? { wasmBinary }
         : {
-            locateFile: (file: string) =>
-              typeof window !== "undefined"
-                ? `${window.location.origin}/${file}`
-                : `https://sql.js.org/dist/${file}`,
+            locateFile: (file: string) => {
+              if (typeof window !== "undefined") {
+                return `${window.location.origin}/${file}`;
+              }
+              try {
+                // In Node / SSR environments, locate the local wasm file directly
+                const path = require("path");
+                return path.join(process.cwd(), "node_modules", "sql.js", "dist", file);
+              } catch {
+                return `https://sql.js.org/dist/${file}`;
+              }
+            },
           };
 
       return await initSqlJs(config);
