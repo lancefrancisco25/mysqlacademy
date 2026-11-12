@@ -35,10 +35,8 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
   const dbReady = useLessonStore((s) => s.dbReady);
-  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
   const saveScenarioProgress = useLessonStore((s) => s.saveScenarioProgress);
   const lessonProg = useLessonStore((s) => (currentLesson ? s.progress[currentLesson.slug] : undefined));
-  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   const [completedRequirements, setCompletedRequirements] = useState<string[]>(() => {
     let saved: any = null;
@@ -49,7 +47,6 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       } catch {}
     }
     const curLesson = useLessonStore.getState().currentLesson;
-    const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
     const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
 
     if (saved?.completed && Array.isArray(saved.completedRequirements)) {
@@ -57,9 +54,6 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
     }
     if (prog?.scenarioCompleted && Array.isArray(prog.scenarioCompletedRequirements)) {
       return prog.scenarioCompletedRequirements;
-    }
-    if (isDone) {
-      return exercise.requirements.map((r) => r.id);
     }
     return [];
   });
@@ -73,13 +67,12 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       } catch {}
     }
     const curLesson = useLessonStore.getState().currentLesson;
-    const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
     const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
 
     if (saved?.completed && saved.code) return saved.code;
     if (saved?.completed) return exercise.solutionSQL;
     if (prog?.scenarioCompleted && prog.scenarioCode) return prog.scenarioCode;
-    if (prog?.scenarioCompleted || isDone) return exercise.solutionSQL;
+    if (prog?.scenarioCompleted) return exercise.solutionSQL;
     return exercise.starterSQL || "";
   });
 
@@ -115,7 +108,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       } catch {}
     }
 
-    if (!isExplicitlyReset && (savedState?.completed || lessonProg?.scenarioCompleted || isLessonDone)) {
+    if (!isExplicitlyReset && (savedState?.completed || lessonProg?.scenarioCompleted)) {
       setCompletedRequirements(exercise.requirements.map((r) => r.id));
       setSqlCode(savedState?.code || lessonProg?.scenarioCode || exercise.solutionSQL);
       // Do NOT open solution or hints automatically unless user explicitly clicks
@@ -139,14 +132,14 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
     if (dbReady && exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
       try {
         rollbackIfInTransaction();
-        executeQuery(exercise.schemaSetupSQL);
+        executeQuery(exercise.schemaSetupSQL, { skipTaskValidation: true });
 
         // If no explicit previewTable, inspect live table from schema setup
         if (!exercise.previewTable) {
           const match = exercise.schemaSetupSQL.match(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-zA-Z0-9_]+)/i);
           if (match && match[1]) {
             const tbl = match[1];
-            const res = executeQuery(`SELECT * FROM ${tbl} LIMIT 5`);
+            const res = executeQuery(`SELECT * FROM ${tbl} LIMIT 5`, { skipTaskValidation: true });
             if (res && res.columns.length > 0) {
               setTablePreview({
                 tableName: tbl,
@@ -161,7 +154,8 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
         console.warn("[Scenario] Initial schema setup notice:", err);
       }
     }
-  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, exercise.solutionSQL, isLessonDone, dbReady, executeQuery, exercise.schemaSetupSQL, lessonProg?.scenarioCompleted, lessonProg?.scenarioCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise.id, exercise.starterSQL, exercise.previewTable, exercise.requirements, exercise.solutionSQL, dbReady, executeQuery, exercise.schemaSetupSQL]);
 
   const handleRunSQL = () => {
     if (!sqlCode.trim()) return;
@@ -173,7 +167,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       // 2. Ensure required scenario tables exist before student query runs
       if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
         try {
-          executeQuery(exercise.schemaSetupSQL);
+          executeQuery(exercise.schemaSetupSQL, { skipTaskValidation: true });
         } catch (setupErr) {
           console.warn("[Scenario] Setup SQL execution warning:", setupErr);
         }
@@ -184,7 +178,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       let runtimeError: Error | null = null;
 
       try {
-        result = executeQuery(sqlCode);
+        result = executeQuery(sqlCode, { skipTaskValidation: true });
       } catch (err: any) {
         runtimeError = err;
       }
@@ -214,7 +208,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
             );
           } else if (rule.type === "query_result" && rule.query) {
             try {
-              const res = executeQuery(rule.query);
+              const res = executeQuery(rule.query, { skipTaskValidation: true });
               if (rule.expectedResult && res) {
                 passed = JSON.stringify(res.values) === JSON.stringify(rule.expectedResult);
               } else if (rule.minReturnedRows !== undefined && res) {
@@ -279,8 +273,6 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
           } else if (reqLower.includes("sum") && lowerCode.includes("sum")) {
             passed = true;
           } else if (reqLower.includes("avg") && lowerCode.includes("avg")) {
-            passed = true;
-          } else if (!runtimeError && (lowerCode.includes("select") || lowerCode.includes("insert") || lowerCode.includes("update") || lowerCode.includes("delete"))) {
             passed = true;
           }
         }
@@ -374,7 +366,7 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
       }
       if (exercise.schemaSetupSQL && exercise.schemaSetupSQL.trim()) {
         try {
-          executeQuery(exercise.schemaSetupSQL);
+          executeQuery(exercise.schemaSetupSQL, { skipTaskValidation: true });
         } catch (e) {
           console.warn("[Scenario] Re-apply schema error:", e);
         }

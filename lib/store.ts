@@ -37,7 +37,7 @@ interface LessonState {
   dbReady: boolean;
   initDB: (seedSQL?: string) => Promise<void>;
   resetDB: (seedSQL?: string) => Promise<void>;
-  executeQuery: (sql: string) => QueryResult | null;
+  executeQuery: (sql: string, options?: { skipTaskValidation?: boolean }) => QueryResult | null;
 
   // Lesson
   currentLesson: Lesson | null;
@@ -301,7 +301,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     }
   },
 
-  executeQuery: (sql: string) => {
+  executeQuery: (sql: string, options?: { skipTaskValidation?: boolean }) => {
     try {
       let result = executeSQL(sql);
       // Refresh schema after query execution
@@ -317,50 +317,52 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         toast.warning(warn, { duration: 6000 });
       });
 
-      // Grader verification
-      const lesson = get().currentLesson;
-      if (lesson && lesson.tasks) {
-        for (const task of lesson.tasks) {
-          if (get().isTaskCompleted(lesson.slug, task.id)) continue;
+      // Grader verification (only for guided lab tasks; skip if testing checkpoint, drill, or scenario)
+      if (!options?.skipTaskValidation) {
+        const lesson = get().currentLesson;
+        if (lesson && lesson.tasks) {
+          for (const task of lesson.tasks) {
+            if (get().isTaskCompleted(lesson.slug, task.id)) continue;
 
-          const validation = validateTask(task, sql, result);
-          if (validation.passed) {
-            get().completeTask(lesson.slug, task.id);
-            const feedbackMsg = `✓ Task Completed: ${task.title}`;
-            get().addFeedback({
-              type: "success",
-              message: feedbackMsg,
-              taskId: task.id,
-            });
-            toast.success(feedbackMsg);
-
-            // Announce next task if available
-            const updatedProg = get().progress[lesson.slug]?.completedTaskIds || [];
-            const nextTask = lesson.tasks.find((t) => !updatedProg.includes(t.id));
-
-            // Attach completed task info to result object so terminal can print it
-            if (!result) {
-              result = {
-                columns: ["status"],
-                values: [["Query OK"]],
-              };
-            }
-            (result as any).newlyCompletedTask = task;
-            if (nextTask) {
-              (result as any).nextTask = nextTask;
-              get().addFeedback({
-                type: "info",
-                message: `Next Objective: ${nextTask.title}`,
-                taskId: nextTask.id,
-              });
-            } else {
+            const validation = validateTask(task, sql, result);
+            if (validation.passed) {
+              get().completeTask(lesson.slug, task.id);
+              const feedbackMsg = `✓ Task Completed: ${task.title}`;
               get().addFeedback({
                 type: "success",
-                message: `🏆 All tasks completed for ${lesson.title}! Ready for next challenge.`,
+                message: feedbackMsg,
+                taskId: task.id,
               });
-              toast.success("Lesson mastered! Great job!");
+              toast.success(feedbackMsg);
+
+              // Announce next task if available
+              const updatedProg = get().progress[lesson.slug]?.completedTaskIds || [];
+              const nextTask = lesson.tasks.find((t) => !updatedProg.includes(t.id));
+
+              // Attach completed task info to result object so terminal can print it
+              if (!result) {
+                result = {
+                  columns: ["status"],
+                  values: [["Query OK"]],
+                };
+              }
+              (result as any).newlyCompletedTask = task;
+              if (nextTask) {
+                (result as any).nextTask = nextTask;
+                get().addFeedback({
+                  type: "info",
+                  message: `Next Objective: ${nextTask.title}`,
+                  taskId: nextTask.id,
+                });
+              } else {
+                get().addFeedback({
+                  type: "success",
+                  message: `🏆 All tasks completed for ${lesson.title}! Ready for next challenge.`,
+                });
+                toast.success("Lesson mastered! Great job!");
+              }
+              break;
             }
-            break;
           }
         }
       }
@@ -800,12 +802,15 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         ? passedIds.length >= targetLesson.syntaxDrills.length
         : false;
 
+    const updatedIsCompleted = allDrillsPassed ? currentLessonProg.isCompleted : false;
+
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
         ...currentLessonProg,
         completedDrillIds: passedIds,
         drillCodes: codes,
+        isCompleted: updatedIsCompleted,
         lastAccessed: Date.now(),
       },
     };
@@ -822,6 +827,9 @@ export const useLessonStore = create<LessonState>((set, get) => ({
             completed: allDrillsPassed,
           })
         );
+        if (!allDrillsPassed) {
+          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+        }
       } catch {}
     }
 
@@ -855,12 +863,20 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
+    const targetLesson = getLessonBySlug(lessonSlug);
+    const allCheckpointPassed = targetLesson?.checkpointExam
+      ? passedQuestionIds.length >= targetLesson.checkpointExam.questions.length
+      : completed;
+
+    const updatedIsCompleted = allCheckpointPassed ? currentLessonProg.isCompleted : false;
+
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
         ...currentLessonProg,
         checkpointPassedIds: passedQuestionIds,
         checkpointCodes: codes,
+        isCompleted: updatedIsCompleted,
         lastAccessed: Date.now(),
       },
     };
@@ -874,9 +890,12 @@ export const useLessonStore = create<LessonState>((set, get) => ({
           JSON.stringify({
             passedQuestionIds,
             codes,
-            completed,
+            completed: allCheckpointPassed,
           })
         );
+        if (!allCheckpointPassed) {
+          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+        }
       } catch {}
     }
 
@@ -910,6 +929,8 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
+    const updatedIsCompleted = completed ? currentLessonProg.isCompleted : false;
+
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
@@ -917,6 +938,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         scenarioCompleted: completed,
         scenarioCode: code,
         scenarioCompletedRequirements: completedRequirements,
+        isCompleted: updatedIsCompleted,
         lastAccessed: Date.now(),
       },
     };
@@ -934,6 +956,9 @@ export const useLessonStore = create<LessonState>((set, get) => ({
             completedAt: Date.now(),
           })
         );
+        if (!completed) {
+          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+        }
       } catch {}
     }
 
@@ -965,11 +990,14 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
+    const updatedIsCompleted = completed ? currentLessonProg.isCompleted : false;
+
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
         ...currentLessonProg,
         dragBlockCompleted: completed,
+        isCompleted: updatedIsCompleted,
         lastAccessed: Date.now(),
       },
     };
@@ -982,6 +1010,9 @@ export const useLessonStore = create<LessonState>((set, get) => ({
           `mysql-academy-dragblock-${exerciseId}`,
           JSON.stringify({ completed })
         );
+        if (!completed) {
+          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+        }
       } catch {}
     }
 

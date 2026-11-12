@@ -24,10 +24,8 @@ interface DragBlockExerciseProps {
 
 export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
   const currentLesson = useLessonStore((s) => s.currentLesson);
-  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
   const saveDragBlockProgress = useLessonStore((s) => s.saveDragBlockProgress);
   const lessonProg = useLessonStore((s) => (currentLesson ? s.progress[currentLesson.slug] : undefined));
-  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   // Available blocks not yet placed in the assembled sequence
   const [availableBlocks, setAvailableBlocks] = useState<DragBlock[]>(() => {
@@ -35,7 +33,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       try {
         const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
         const cur = useLessonStore.getState().currentLesson;
-        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().isLessonCompleted(cur.slug));
+        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().progress[cur.slug]?.dragBlockCompleted);
         if (done) return [];
       } catch {}
     }
@@ -49,7 +47,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       try {
         const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
         const cur = useLessonStore.getState().currentLesson;
-        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().isLessonCompleted(cur.slug));
+        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().progress[cur.slug]?.dragBlockCompleted);
         if (done) {
           return exercise.solution
             .map((id) => exercise.blocks.find((b) => b.id === id))
@@ -66,7 +64,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       try {
         const raw = localStorage.getItem(`mysql-academy-dragblock-${exercise.id}`);
         const cur = useLessonStore.getState().currentLesson;
-        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().isLessonCompleted(cur.slug));
+        const done = (raw && JSON.parse(raw)?.completed) || (cur && useLessonStore.getState().progress[cur.slug]?.dragBlockCompleted);
         if (done) return "correct";
       } catch {}
     }
@@ -87,7 +85,7 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       } catch {}
     }
 
-    if (!isExplicitlyReset && (saved?.completed || lessonProg?.dragBlockCompleted || isLessonDone)) {
+    if (!isExplicitlyReset && (saved?.completed || lessonProg?.dragBlockCompleted)) {
       const solved = exercise.solution
         .map((id) => exercise.blocks.find((b) => b.id === id))
         .filter(Boolean) as DragBlock[];
@@ -100,7 +98,8 @@ export function DragBlockExercise({ exercise }: DragBlockExerciseProps) {
       setStatus(null);
     }
     setShowHint(false);
-  }, [exercise.id, exercise.blocks, exercise.solution, isLessonDone, lessonProg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise.id, exercise.blocks, exercise.solution]);
 
   // Click to place block from available into placed
   const handleAddBlock = (block: DragBlock) => {

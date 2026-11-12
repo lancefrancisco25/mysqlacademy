@@ -43,10 +43,8 @@ export function CheckpointExam({
   const executeQuery = useLessonStore((s) => s.executeQuery);
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
-  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
   const saveCheckpointProgress = useLessonStore((s) => s.saveCheckpointProgress);
   const lessonProg = useLessonStore((s) => (currentLesson ? s.progress[currentLesson.slug] : undefined));
-  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
 
   const [isResettingDB, setIsResettingDB] = useState(false);
   const [resetNotice, setResetNotice] = useState<string | null>(null);
@@ -74,7 +72,6 @@ export function CheckpointExam({
       } catch {}
     }
     const curLesson = useLessonStore.getState().currentLesson;
-    const isDone = curLesson ? useLessonStore.getState().isLessonCompleted(curLesson.slug) : false;
     const prog = curLesson ? useLessonStore.getState().progress[curLesson.slug] : undefined;
 
     const passedIds = saved?.passedQuestionIds || prog?.checkpointPassedIds || [];
@@ -82,7 +79,7 @@ export function CheckpointExam({
 
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = !isExplicitlyReset && (isDone || passedIds.includes(q.id));
+      const isPassed = !isExplicitlyReset && passedIds.includes(q.id);
       const code = isPassed ? (codes[q.id] || q.solutionSQL || "") : (codes[q.id] || "");
       initial[q.id] = {
         code: code,
@@ -112,7 +109,7 @@ export function CheckpointExam({
 
     const initial: Record<string, any> = {};
     exam.questions.forEach((q) => {
-      const isPassed = !isExplicitlyReset && (isLessonDone || passedIds.includes(q.id));
+      const isPassed = !isExplicitlyReset && passedIds.includes(q.id);
       const code = isPassed ? (codes[q.id] || q.solutionSQL || "") : (codes[q.id] || "");
       initial[q.id] = {
         code: code,
@@ -123,7 +120,8 @@ export function CheckpointExam({
       };
     });
     setQuestionStates(initial);
-  }, [exam.id, exam.questions, isLessonDone, lessonProg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exam.id, exam.questions]);
 
   const handleCodeChange = (id: string, val: string) => {
     setQuestionStates((prev) => ({
@@ -161,7 +159,7 @@ export function CheckpointExam({
 
     try {
       rollbackIfInTransaction();
-      const result = executeQuery(currentCode);
+      const result = executeQuery(currentCode, { skipTaskValidation: true });
 
       // Construct a Task-like structure for the validator
       const mockTask: Task = {

@@ -27,12 +27,8 @@ export function TaskList({ tasks, lessonSlug }: TaskListProps) {
   const verifyPendingTasks = useLessonStore((s) => s.verifyPendingTasks);
   const toggleTask = useLessonStore((s) => s.toggleTask);
 
-  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
-  const isLessonDone = isLessonCompleted(lessonSlug);
   const lessonProgress = progress[lessonSlug];
-  const completedTaskIds = isLessonDone
-    ? tasks.map((t) => t.id)
-    : (lessonProgress?.completedTaskIds || []);
+  const completedTaskIds = lessonProgress?.completedTaskIds || [];
   const completedCount = tasks.filter((t) => completedTaskIds.includes(t.id)).length;
   const percent = Math.round((completedCount / Math.max(tasks.length, 1)) * 100);
 

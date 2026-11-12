@@ -249,10 +249,8 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
   const executeQuery = useLessonStore((s) => s.executeQuery);
   const resetDB = useLessonStore((s) => s.resetDB);
   const currentLesson = useLessonStore((s) => s.currentLesson);
-  const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
   const saveDrillProgress = useLessonStore((s) => s.saveDrillProgress);
   const lessonProg = useLessonStore((s) => s.progress[lessonSlug]);
-  const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
   const tables = useLessonStore((s) => s.tables);
   const getTableRows = useLessonStore((s) => s.getTableRows);
 
@@ -311,7 +309,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
 
     const initial: Record<string, ItemState> = {};
     drills.forEach((drill) => {
-      const isPassed = !isExplicitlyReset && (isLessonDone || passedIds.includes(drill.id));
+      const isPassed = !isExplicitlyReset && passedIds.includes(drill.id);
       initial[drill.id] = {
         code: isPassed ? (codes[drill.id] || drill.solutionSQL) : (codes[drill.id] || drill.starterSQL || ""),
         passed: isPassed,
@@ -342,7 +340,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
 
     const next: Record<string, ItemState> = {};
     drills.forEach((drill) => {
-      const isPassed = !isExplicitlyReset && (isLessonDone || passedIds.includes(drill.id));
+      const isPassed = !isExplicitlyReset && passedIds.includes(drill.id);
       next[drill.id] = {
         code: isPassed ? (codes[drill.id] || drill.solutionSQL) : (codes[drill.id] || drill.starterSQL || ""),
         passed: isPassed,
@@ -354,7 +352,8 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       };
     });
     setItemStates(next);
-  }, [lessonSlug, drills, isLessonDone, resetKey, storageKey, lessonProg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessonSlug, drills, resetKey, storageKey]);
 
   const handleCodeChange = (id: string, val: string) => {
     setItemStates((prev) => ({
@@ -475,7 +474,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       // Execute setup SQL if drill requires pre-requisite views or cleanup
       if (drill.setupSQL) {
         try {
-          executeQuery(drill.setupSQL);
+          executeQuery(drill.setupSQL, { skipTaskValidation: true });
         } catch (setupErr) {
           console.warn("Syntax drill setupSQL execution warning:", setupErr);
         }
@@ -485,7 +484,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       let userRes: QueryResult | null = null;
       let runtimeError: Error | null = null;
       try {
-        userRes = executeQuery(rawInput);
+        userRes = executeQuery(rawInput, { skipTaskValidation: true });
       } catch (err: any) {
         runtimeError = err;
       }
@@ -509,7 +508,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
       let matchesResult = true;
       if (drill.validationQuery) {
         try {
-          const valRes = executeQuery(drill.validationQuery);
+          const valRes = executeQuery(drill.validationQuery, { skipTaskValidation: true });
           if (drill.expectedResult && valRes) {
             matchesResult = compareValuesLoose(valRes.values, drill.expectedResult);
           } else {
