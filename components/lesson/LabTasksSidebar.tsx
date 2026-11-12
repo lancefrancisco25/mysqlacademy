@@ -23,6 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useLessonStore } from "@/lib/store";
+import {
+  CHECKPOINT_TO_TASK_MAP,
+  TASK_TO_CHECKPOINT_MAP,
+} from "@/lib/lessons/problem-linking";
 import { cn } from "@/lib/utils";
 import type { Lesson, TrackInfo, Task, CheckpointQuestion } from "@/types";
 
@@ -48,14 +52,31 @@ export function LabTasksSidebar({
 
   const lessonProgress = progress[lesson.slug];
   const completedTaskIds = lessonProgress?.completedTaskIds || [];
-  const completedCount = lesson.tasks.filter((t) => completedTaskIds.includes(t.id)).length;
+  const checkpointPassedIds = lessonProgress?.checkpointPassedIds || [];
+
+  const isTaskDone = (taskId: string) => {
+    const linkedCheckpoint = TASK_TO_CHECKPOINT_MAP[taskId];
+    return (
+      completedTaskIds.includes(taskId) ||
+      Boolean(linkedCheckpoint && checkpointPassedIds.includes(linkedCheckpoint))
+    );
+  };
+
+  const isQuestionPassed = (qId: string) => {
+    const linkedTask = CHECKPOINT_TO_TASK_MAP[qId];
+    return (
+      checkpointPassedIds.includes(qId) ||
+      Boolean(linkedTask && completedTaskIds.includes(linkedTask))
+    );
+  };
+
+  const completedCount = lesson.tasks.filter((t) => isTaskDone(t.id)).length;
   const percent = Math.round((completedCount / Math.max(lesson.tasks.length, 1)) * 100);
 
   // Checkpoint exam states
-  const checkpointPassedIds = lessonProgress?.checkpointPassedIds || [];
   const checkpointTotalCount = lesson.checkpointExam?.questions.length || 0;
   const checkpointPassedCount = lesson.checkpointExam
-    ? lesson.checkpointExam.questions.filter((q) => checkpointPassedIds.includes(q.id)).length
+    ? lesson.checkpointExam.questions.filter((q) => isQuestionPassed(q.id)).length
     : 0;
   const checkpointPercent =
     checkpointTotalCount > 0
@@ -198,7 +219,7 @@ export function LabTasksSidebar({
             {/* Checkpoint Questions with Full Instructions */}
             <div className="space-y-3 pt-1">
               {lesson.checkpointExam.questions.map((q, idx) => {
-                const isPassed = checkpointPassedIds.includes(q.id);
+                const isPassed = isQuestionPassed(q.id);
                 const isHintOpen = !!openCheckpointHints[q.id];
                 const isSolOpen = !!openCheckpointSolutions[q.id];
 
@@ -333,7 +354,7 @@ export function LabTasksSidebar({
           {/* Task Items */}
           <div className="space-y-2.5 pt-1">
             {lesson.tasks.map((task, idx) => {
-              const isDone = completedTaskIds.includes(task.id);
+              const isDone = isTaskDone(task.id);
               const isHintOpen = !!openHints[task.id];
 
               return (

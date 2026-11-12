@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useLessonStore } from "@/lib/store";
+import { TASK_TO_CHECKPOINT_MAP } from "@/lib/lessons/problem-linking";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 import { Progress } from "@/components/ui/progress";
@@ -29,7 +30,17 @@ export function TaskList({ tasks, lessonSlug }: TaskListProps) {
 
   const lessonProgress = progress[lessonSlug];
   const completedTaskIds = lessonProgress?.completedTaskIds || [];
-  const completedCount = tasks.filter((t) => completedTaskIds.includes(t.id)).length;
+  const checkpointPassedIds = lessonProgress?.checkpointPassedIds || [];
+
+  const isTaskDone = (taskId: string) => {
+    const linkedCheckpoint = TASK_TO_CHECKPOINT_MAP[taskId];
+    return (
+      completedTaskIds.includes(taskId) ||
+      Boolean(linkedCheckpoint && checkpointPassedIds.includes(linkedCheckpoint))
+    );
+  };
+
+  const completedCount = tasks.filter((t) => isTaskDone(t.id)).length;
   const percent = Math.round((completedCount / Math.max(tasks.length, 1)) * 100);
 
   return (
@@ -73,7 +84,7 @@ export function TaskList({ tasks, lessonSlug }: TaskListProps) {
       {/* Task List */}
       <div className="space-y-2.5">
         {tasks.map((task, idx) => {
-          const isDone = completedTaskIds.includes(task.id);
+          const isDone = isTaskDone(task.id);
           return (
             <TaskItem
               key={task.id}

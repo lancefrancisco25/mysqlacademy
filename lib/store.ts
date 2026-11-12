@@ -69,7 +69,12 @@ interface LessonState {
   resetLessonProgress: (lessonSlug: string) => void;
   isLessonCompleted: (lessonSlug: string) => boolean;
   getLessonProgress: (lessonSlug: string) => number; // 0-100
-  getOverallStats: () => { completedLessons: number; totalTasksDone: number; masteryScore: number };
+  getOverallStats: () => {
+    completedLessons: number;
+    totalTasksDone: number;
+    totalTasks: number;
+    masteryScore: number;
+  };
   getUserPoints: () => number;
   saveDrillProgress: (
     lessonSlug: string,
@@ -718,11 +723,23 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       ? currentLessonProg.completedTaskIds.filter((id) => id !== taskId)
       : [...currentLessonProg.completedTaskIds, taskId];
 
+    // If this task corresponds to a checkpoint question, keep checkpoint passed list in sync
+    const linkedCheckpointId = TASK_TO_CHECKPOINT_MAP[taskId];
+    const currentCheckpoints = currentLessonProg.checkpointPassedIds || [];
+    const updatedCheckpoints = isDone
+      ? linkedCheckpointId
+        ? currentCheckpoints.filter((id) => id !== linkedCheckpointId)
+        : currentCheckpoints
+      : linkedCheckpointId && !currentCheckpoints.includes(linkedCheckpointId)
+      ? [...currentCheckpoints, linkedCheckpointId]
+      : currentCheckpoints;
+
     const updatedProgress = {
       ...currentProgress,
       [lessonSlug]: {
         ...currentLessonProg,
         completedTaskIds: updatedTaskIds,
+        checkpointPassedIds: updatedCheckpoints,
         lastAccessed: Date.now(),
       },
     };
@@ -1192,13 +1209,25 @@ export const useLessonStore = create<LessonState>((set, get) => ({
   getOverallStats: () => {
     const progress = get().progress;
     let totalTasksDone = 0;
+    let totalTasks = 0;
     let completedLessons = 0;
 
     LESSONS.forEach((lesson) => {
       const p = progress[lesson.slug];
-      if (p && p.completedTaskIds) {
-        totalTasksDone += p.completedTaskIds.length;
-      }
+      const passedCheckpoints = p?.checkpointPassedIds || [];
+      const completedTasks = p?.completedTaskIds || [];
+
+      lesson.tasks.forEach((task) => {
+        totalTasks += 1;
+        const linkedCheckpoint = TASK_TO_CHECKPOINT_MAP[task.id];
+        const isDone =
+          completedTasks.includes(task.id) ||
+          (linkedCheckpoint && passedCheckpoints.includes(linkedCheckpoint));
+        if (isDone) {
+          totalTasksDone += 1;
+        }
+      });
+
       const stats = getLessonActivityStats(lesson, p);
       if (stats.isCompleted) {
         completedLessons += 1;
@@ -1209,7 +1238,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       100,
       Math.round((completedLessons / Math.max(LESSONS.length, 1)) * 100)
     );
-    return { completedLessons, totalTasksDone, masteryScore };
+    return { completedLessons, totalTasksDone, totalTasks, masteryScore };
   },
 
   getUserPoints: () => {

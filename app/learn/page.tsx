@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Blocks,
   PenLine,
@@ -24,7 +24,10 @@ import { Progress } from "@/components/ui/progress";
 import { AuthBarrier } from "@/components/auth/AuthBarrier";
 import { ModuleUpdatesModal } from "@/components/lesson/ModuleUpdatesModal";
 import { TRACKS, LESSONS, getLessonsForTrack } from "@/lib/lessons";
+import { getLessonActivityStats } from "@/lib/lessons/activities";
+import { TASK_TO_CHECKPOINT_MAP } from "@/lib/lessons/problem-linking";
 import { useLessonStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, any> = {
   Blocks,
@@ -38,36 +41,42 @@ const ICON_MAP: Record<string, any> = {
 export default function LearnDashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [showUpdates, setShowUpdates] = useState(false);
+  const user = useLessonStore((s) => s.user);
   const progress = useLessonStore((s) => s.progress);
   const getOverallStats = useLessonStore((s) => s.getOverallStats);
+  const rehydrateProgress = useLessonStore((s) => s.rehydrateProgress);
+  const syncWithCloud = useLessonStore((s) => s.syncWithCloud);
 
   useEffect(() => {
     setMounted(true);
+    rehydrateProgress();
+    if (user) {
+      syncWithCloud();
+    }
     if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("mysql-academy-progress");
-        if (saved) {
-          useLessonStore.setState({ progress: JSON.parse(saved) });
-        }
-      } catch {}
-
       const platformSeen = localStorage.getItem("mysql-academy-seen-platform-updates");
       if (platformSeen !== "true") {
         setShowUpdates(true);
       }
     }
-  }, []);
+  }, [user, rehydrateProgress, syncWithCloud]);
 
   const stats = mounted
     ? getOverallStats()
-    : { completedLessons: 0, totalTasksDone: 0, masteryScore: 0 };
+    : { completedLessons: 0, totalTasksDone: 0, totalTasks: 31, masteryScore: 0 };
 
   const totalLessons = LESSONS.length;
-  const overallPercentage = Math.round(
-    (stats.completedLessons / Math.max(totalLessons, 1)) * 100
-  );
+  const currentProgress = useMemo(() => (mounted ? progress : {}), [mounted, progress]);
 
-  const currentProgress = mounted ? progress : {};
+  // Compute dynamic next lesson slug for Resume Learning
+  const nextLessonSlug = useMemo(() => {
+    const firstIncomplete = LESSONS.find((l) => {
+      const p = currentProgress[l.slug];
+      const s = getLessonActivityStats(l, p);
+      return !s.isCompleted;
+    });
+    return firstIncomplete?.slug || LESSONS[0]?.slug || "create-database";
+  }, [currentProgress]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -98,8 +107,8 @@ export default function LearnDashboardPage() {
                 <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
                 <span>Updates</span>
               </Button>
-              <Link href="/learn/create-database">
-                <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 h-10">
+              <Link href={`/learn/${nextLessonSlug}`}>
+                <Button className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 h-10 font-semibold shadow-xs">
                   Resume Learning
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -132,8 +141,10 @@ export default function LearnDashboardPage() {
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">Lab Tasks Completed</p>
-                <p className="text-2xl font-bold tracking-tight">{stats.totalTasksDone}</p>
+                <p className="text-xs text-muted-foreground font-medium">Tasks Completed</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {stats.totalTasksDone} <span className="text-xs text-muted-foreground font-normal">/ {stats.totalTasks || 31}</span>
+                </p>
               </div>
             </div>
 
@@ -212,10 +223,31 @@ export default function LearnDashboardPage() {
               const TrackIcon = ICON_MAP[track.iconName] || Blocks;
               const lessons = getLessonsForTrack(track.id);
 
-              // Calculate track completion
+              let trackTasksTotal = 0;
+              let trackTasksDone = 0;
+
+              lessons.forEach((l) => {
+                const p = currentProgress[l.slug];
+                const passedCheckpoints = p?.checkpointPassedIds || [];
+                const completedTasks = p?.completedTaskIds || [];
+
+                l.tasks.forEach((t) => {
+                  trackTasksTotal += 1;
+                  const linkedCheckpoint = TASK_TO_CHECKPOINT_MAP[t.id];
+                  if (
+                    completedTasks.includes(t.id) ||
+                    (linkedCheckpoint && passedCheckpoints.includes(linkedCheckpoint))
+                  ) {
+                    trackTasksDone += 1;
+                  }
+                });
+              });
+
+              // Calculate track lesson completion based on 100% activity mastery
               const completedInTrack = lessons.filter((l) => {
                 const p = currentProgress[l.slug];
-                return p && p.completedTaskIds && p.completedTaskIds.length >= l.tasks.length;
+                const s = getLessonActivityStats(l, p);
+                return s.isCompleted;
               }).length;
 
               const trackPercent = lessons.length > 0
@@ -250,9 +282,9 @@ export default function LearnDashboardPage() {
 
                     <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
                       <div className="text-right hidden sm:block">
-                        <p className="text-xs font-semibold">{trackPercent}% Complete</p>
+                        <p className="text-xs font-semibold">{trackPercent}% Mastered</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {completedInTrack} of {lessons.length} lessons
+                          {completedInTrack} of {lessons.length} lessons • {trackTasksDone}/{trackTasksTotal} tasks
                         </p>
                       </div>
                       <div className="w-20">
@@ -265,8 +297,21 @@ export default function LearnDashboardPage() {
                   <div className="divide-y divide-border/40">
                     {lessons.map((lesson, lessonIdx) => {
                       const lessonProg = currentProgress[lesson.slug];
-                      const tasksDone = lessonProg?.completedTaskIds?.length || 0;
-                      const isComplete = tasksDone >= lesson.tasks.length && lesson.tasks.length > 0;
+                      const passedCheckpoints = lessonProg?.checkpointPassedIds || [];
+                      const completedTasks = lessonProg?.completedTaskIds || [];
+
+                      const tasksCount = lesson.tasks?.length || 0;
+                      const tasksDone = lesson.tasks?.filter((t) => {
+                        const linkedCheckpoint = TASK_TO_CHECKPOINT_MAP[t.id];
+                        return (
+                          completedTasks.includes(t.id) ||
+                          (linkedCheckpoint && passedCheckpoints.includes(linkedCheckpoint))
+                        );
+                      }).length || 0;
+
+                      const actStats = getLessonActivityStats(lesson, lessonProg);
+                      const isComplete = actStats.isCompleted;
+                      const isTasksDone = tasksDone === tasksCount && tasksCount > 0;
 
                       return (
                         <Link
@@ -277,8 +322,15 @@ export default function LearnDashboardPage() {
                           <div className="flex items-center gap-3.5 min-w-0">
                             {isComplete ? (
                               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            ) : tasksDone > 0 || actStats.completedActivities > 0 ? (
+                              <div
+                                className="h-4 w-4 rounded-full border-2 border-amber-500 flex items-center justify-center shrink-0"
+                                title="In Progress"
+                              >
+                                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                              </div>
                             ) : (
-                              <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <Circle className="h-4 w-4 text-muted-foreground/60 shrink-0" />
                             )}
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
@@ -288,6 +340,11 @@ export default function LearnDashboardPage() {
                                 <h4 className="text-sm font-semibold truncate group-hover:text-emerald-400 transition-colors">
                                   {lesson.title}
                                 </h4>
+                                {isComplete && (
+                                  <Badge variant="success" className="text-[10px] py-0 px-1.5 h-4">
+                                    Mastered
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground truncate mt-0.5">
                                 {lesson.description}
@@ -296,9 +353,39 @@ export default function LearnDashboardPage() {
                           </div>
 
                           <div className="flex items-center gap-3 shrink-0 ml-4">
-                            <span className="text-[11px] font-mono text-muted-foreground">
-                              {tasksDone}/{lesson.tasks.length} tasks
-                            </span>
+                            <div className="text-right">
+                              <span
+                                className={cn(
+                                  "text-[11px] font-mono block",
+                                  isTasksDone
+                                    ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                                    : tasksDone > 0
+                                    ? "text-amber-600 dark:text-amber-400 font-semibold"
+                                    : "text-muted-foreground"
+                                )}
+                              >
+                                {tasksDone}/{tasksCount} tasks
+                              </span>
+                              {actStats.totalActivities > tasksCount && (
+                                <span className="text-[10px] text-muted-foreground font-mono block">
+                                  {actStats.percent}% activities
+                                </span>
+                              )}
+                            </div>
+
+                            {isComplete ? (
+                              <Badge variant="success" className="text-[10px] py-0 px-2 hidden sm:inline-flex">
+                                Mastered
+                              </Badge>
+                            ) : actStats.percent > 0 ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] py-0 px-1.5 font-mono text-amber-500 border-amber-500/30 bg-amber-500/10 hidden sm:inline-flex"
+                              >
+                                {actStats.percent}%
+                              </Badge>
+                            ) : null}
+
                             <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
                           </div>
                         </Link>
