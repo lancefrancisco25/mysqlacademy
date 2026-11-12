@@ -5,7 +5,7 @@ export interface LeaderboardEntry {
   track: string;
   completedLessons: number;
   completedTasks: number;
-  streakDays: number;
+  streakDays?: number;
   scoreAllTime: number;
   scoreThisWeek: number;
   isCurrentUser?: boolean;

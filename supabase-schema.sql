@@ -35,14 +35,18 @@ end $$;
 alter table public.user_progress add column if not exists name text;
 alter table public.user_progress add column if not exists opt_in boolean not null default true;
 
--- 4. Backfill existing rows: populate full name from progress metadata or formatted email
-update public.user_progress
+-- 4. Backfill existing rows: populate name strictly from Google Auth profile metadata in auth.users
+update public.user_progress up
 set name = coalesce(
-  nullif(trim(name), ''),
-  progress->'_meta'->>'name',
-  initcap(replace(split_part(email, '@', 1), '.', ' '))
+  nullif(trim(up.name), ''),
+  au.raw_user_meta_data->>'full_name',
+  au.raw_user_meta_data->>'name',
+  nullif(trim(concat_ws(' ', au.raw_user_meta_data->>'given_name', au.raw_user_meta_data->>'family_name')), ''),
+  up.progress->'_meta'->>'name'
 )
-where name is null or trim(name) = '';
+from auth.users au
+where up.user_id = au.id::text
+  and (up.name is null or trim(up.name) = '' or up.name = 'Student');
 
 -- 4. Turn on Row Level Security (RLS)
 alter table public.user_progress enable row level security;

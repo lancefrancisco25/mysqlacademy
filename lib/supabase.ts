@@ -36,15 +36,32 @@ export function getSupabaseClient(): SupabaseClient | null {
 }
 
 export function mapSupabaseUser(user: User): StudentUser {
+  const meta = user.user_metadata || {};
+  const identityData = user.identities?.[0]?.identity_data || {};
+
+  // Extract name strictly from Google Auth profile metadata (never from email)
+  const googleName =
+    meta.full_name ||
+    meta.name ||
+    identityData.full_name ||
+    identityData.name ||
+    (meta.given_name
+      ? `${meta.given_name} ${meta.family_name || ""}`.trim()
+      : null) ||
+    (identityData.given_name
+      ? `${identityData.given_name} ${identityData.family_name || ""}`.trim()
+      : null) ||
+    "Student";
+
   return {
     id: user.id,
     email: user.email,
-    name:
-      user.user_metadata?.full_name ||
-      user.user_metadata?.name ||
-      user.email?.split("@")[0] ||
-      "Student",
-    avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+    name: googleName,
+    avatarUrl:
+      meta.avatar_url ||
+      meta.picture ||
+      identityData.avatar_url ||
+      identityData.picture,
   };
 }
 
@@ -209,7 +226,7 @@ export async function saveCloudProgress(
   if (!client || !userId) return false;
 
   try {
-    const studentName = name || (email ? email.split("@")[0] : "Student");
+    const studentName = name || "Student";
     const payloadWithMeta = {
       ...progress,
       _meta: {

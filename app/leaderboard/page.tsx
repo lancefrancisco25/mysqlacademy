@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Trophy,
-  Flame,
   CheckCircle2,
   Search,
   Eye,
@@ -71,17 +70,6 @@ function parseProgressToStats(rawProgress: Record<string, any>) {
     streakDays,
     track,
   };
-}
-
-function formatFallbackName(email?: string | null): string {
-  if (!email) return "Student";
-  const userPart = email.split("@")[0].replace(/[._-]+/g, " ");
-  return (
-    userPart
-      .split(" ")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ") || "Student"
-  );
 }
 
 export default function LeaderboardPage() {
@@ -266,7 +254,7 @@ export default function LeaderboardPage() {
       const studentName =
         record.name ||
         rawMeta?.name ||
-        formatFallbackName(record.email);
+        "Student";
 
       const stats = parseProgressToStats(record.progress);
       const scoreAllTime = isCurrent ? Math.max(stats.scoreAllTime, userStats.scoreAllTime) : stats.scoreAllTime;
@@ -286,7 +274,6 @@ export default function LeaderboardPage() {
           : stats.track,
         completedLessons: isCurrent ? Math.max(stats.completedLessons, userStats.completedLessons) : stats.completedLessons,
         completedTasks: isCurrent ? Math.max(stats.completedTasks, userStats.completedTasks) : stats.completedTasks,
-        streakDays: isCurrent ? Math.max(stats.streakDays, userStats.streakDays) : stats.streakDays,
         scoreAllTime,
         scoreThisWeek,
         isCurrentUser: isCurrent,
@@ -295,7 +282,7 @@ export default function LeaderboardPage() {
 
     // 2. Insert or update the current user if opted in and not already added from cloudRecords
     if (isOptedIn && user && !map.has("current-user")) {
-      const studentName = user.name || formatFallbackName(user.email);
+      const studentName = user.name || "Student";
       map.set("current-user", {
         id: user.id || "current-user",
         name: studentName,
@@ -308,7 +295,6 @@ export default function LeaderboardPage() {
             : "Relational Foundations",
         completedLessons: userStats.completedLessons,
         completedTasks: userStats.completedTasks,
-        streakDays: userStats.streakDays,
         scoreAllTime: userStats.scoreAllTime,
         scoreThisWeek: userStats.scoreThisWeek,
         isCurrentUser: true,
@@ -468,8 +454,6 @@ export default function LeaderboardPage() {
             <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
               <span>Points: <strong className="text-foreground">{userStats.scoreAllTime}</strong></span>
               <span>•</span>
-              <span>Streak: <strong className="text-foreground">{userStats.streakDays}d</strong></span>
-              <span>•</span>
               <span>Rank: <strong className="text-emerald-500">{currentUserRank ? `#${currentUserRank}` : "Unranked"}</strong></span>
             </div>
           </div>
@@ -495,7 +479,7 @@ export default function LeaderboardPage() {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-3xl">
-                When enabled, your display name, current track, total points, and day streak appear on the public cohort leaderboard. When disabled, your learning statistics remain private to your account.
+                When enabled, your display name, current track, and total points appear on the public cohort leaderboard. When disabled, your learning statistics remain private to your account.
               </p>
             </div>
 
@@ -723,9 +707,6 @@ export default function LeaderboardPage() {
                     <th scope="col" className="px-4 py-3 text-center hidden sm:table-cell">
                       Tasks
                     </th>
-                    <th scope="col" className="px-4 py-3 text-center">
-                      Streak
-                    </th>
                     <th scope="col" className="px-4 py-3 text-right">
                       Score
                     </th>
@@ -825,14 +806,6 @@ export default function LeaderboardPage() {
                           <span className="inline-flex items-center gap-1">
                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                             <span>{entry.completedTasks}</span>
-                          </span>
-                        </td>
-
-                        {/* Streak */}
-                        <td className="px-4 py-3.5 text-center font-mono">
-                          <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
-                            <Flame className="h-3.5 w-3.5 fill-amber-500/20" />
-                            <span>{entry.streakDays}d</span>
                           </span>
                         </td>
 
