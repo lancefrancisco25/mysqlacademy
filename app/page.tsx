@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Terminal as TerminalIcon,
   Database,
@@ -13,12 +13,25 @@ import {
   Code2,
   ShieldCheck,
   Zap,
+  Trophy,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useLessonStore, calculateProgressScore } from "@/lib/store";
 
 export default function HomePage() {
+  const [mounted, setMounted] = useState(false);
+  const user = useLessonStore((s) => s.user);
+  const progress = useLessonStore((s) => s.progress);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const points = useMemo(() => {
+    return calculateProgressScore(progress);
+  }, [progress]);
   const [demoQuery, setDemoQuery] = useState(
     "SELECT name, salary FROM engineers WHERE salary > 90000 ORDER BY salary DESC;"
   );
@@ -95,13 +108,23 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Link href="/learn/create-database">
+            <Link href={mounted && user ? "/learn" : "/learn/create-database"}>
               <Button
                 size="lg"
                 className="group relative inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold tracking-tight border border-emerald-500/40 dark:border-emerald-400/30 shadow-sm hover:shadow-md hover:shadow-emerald-950/20 transition-all duration-150 ease-out active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <span>Start Learning</span>
-                <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-active:translate-x-1" />
+                {mounted && user ? (
+                  <>
+                    <Trophy className="h-4 w-4 text-amber-300 shrink-0" />
+                    <span>{points.toLocaleString()} Points • Continue Learning</span>
+                    <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-active:translate-x-1" />
+                  </>
+                ) : (
+                  <>
+                    <span>Start Learning</span>
+                    <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-active:translate-x-1" />
+                  </>
+                )}
               </Button>
             </Link>
             <Link href="/learn">

@@ -64,6 +64,7 @@ interface LessonState {
   isLessonCompleted: (lessonSlug: string) => boolean;
   getLessonProgress: (lessonSlug: string) => number; // 0-100
   getOverallStats: () => { completedLessons: number; totalTasksDone: number; masteryScore: number };
+  getUserPoints: () => number;
   saveDrillProgress: (
     lessonSlug: string,
     passedIds: string[],
@@ -252,6 +253,38 @@ function mergeProgress(
     }
   }
   return merged;
+}
+
+/**
+ * Calculate total points earned by a student from completed modules, tasks, and speed drills.
+ * Each mastered lesson awards 150 points.
+ * Each completed task awards 35 points.
+ * Each passed speed drill awards 20 points.
+ */
+export function calculateProgressScore(progress: Record<string, any>): number {
+  let completedTasks = 0;
+  let completedLessons = 0;
+  let completedDrills = 0;
+
+  for (const [key, val] of Object.entries(progress || {})) {
+    if (key.startsWith("_")) continue;
+    const p = val as any;
+    if (p && Array.isArray(p.completedTaskIds)) {
+      completedTasks += p.completedTaskIds.length;
+    }
+    if (p && Array.isArray(p.completedDrillIds)) {
+      completedDrills += p.completedDrillIds.length;
+    }
+    if (
+      p &&
+      (p.isCompleted ||
+        (Array.isArray(p.completedTaskIds) && p.completedTaskIds.length >= 2))
+    ) {
+      completedLessons += 1;
+    }
+  }
+
+  return completedLessons * 150 + completedTasks * 35 + completedDrills * 20;
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────
@@ -1077,6 +1110,10 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
     const masteryScore = Math.min(100, Math.round(totalTasksDone * 5.5));
     return { completedLessons, totalTasksDone, masteryScore };
+  },
+
+  getUserPoints: () => {
+    return calculateProgressScore(get().progress);
   },
 
   // ── Agent Feedback ────────────────────────────────────────────────────

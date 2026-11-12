@@ -1,17 +1,30 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Database, BookOpen, GraduationCap, Trophy, Terminal, Menu, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { AuthButton } from "@/components/auth/AuthButton";
+import { useLessonStore, calculateProgressScore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const user = useLessonStore((s) => s.user);
+  const progress = useLessonStore((s) => s.progress);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const points = useMemo(() => {
+    return calculateProgressScore(progress);
+  }, [progress]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl">
@@ -94,11 +107,27 @@ export function Header() {
         <div className="flex items-center gap-2 shrink-0">
           <AuthButton />
           <ThemeToggle />
-          <Link href="/learn" className="hidden lg:block">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3.5 font-medium">
-              Start Learning
-            </Button>
-          </Link>
+          {mounted && user ? (
+            <Link
+              href="/leaderboard"
+              className="flex items-center"
+              title="Your progress points • Click to view cohort leaderboard standing"
+            >
+              <div className="flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold transition-all shadow-xs group">
+                <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
+                <span>{points.toLocaleString()}</span>
+                <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-sans font-medium uppercase tracking-wider">
+                  pts
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <Link href="/learn" className="hidden lg:block">
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3.5 font-medium">
+                Start Learning
+              </Button>
+            </Link>
+          )}
           {/* Mobile Menu Toggle */}
           <button
             type="button"
