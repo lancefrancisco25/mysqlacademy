@@ -15,6 +15,8 @@ import {
   RotateCcw,
   RefreshCw,
   AlertCircle,
+  Edit3,
+  Check,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -71,6 +73,17 @@ function parseProgressToStats(rawProgress: Record<string, any>) {
   };
 }
 
+function formatFallbackName(email?: string | null): string {
+  if (!email) return "Student";
+  const userPart = email.split("@")[0].replace(/[._-]+/g, " ");
+  return (
+    userPart
+      .split(" ")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ") || "Student"
+  );
+}
+
 export default function LeaderboardPage() {
   const [mounted, setMounted] = useState(false);
   const [period, setPeriod] = useState<"all-time" | "this-week">("all-time");
@@ -79,10 +92,19 @@ export default function LeaderboardPage() {
   const [announcement, setAnnouncement] = useState("");
   const [cloudRecords, setCloudRecords] = useState<CloudProgressRecord[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
 
   const user = useLessonStore((s) => s.user);
   const progress = useLessonStore((s) => s.progress);
   const getOverallStats = useLessonStore((s) => s.getOverallStats);
+
+  // Initialize nameInput whenever user changes
+  useEffect(() => {
+    if (user?.name) {
+      setNameInput(user.name);
+    }
+  }, [user]);
 
   // Rehydrate opt-in preference and progress on client mount
   useEffect(() => {
@@ -121,6 +143,62 @@ export default function LeaderboardPage() {
     if (!mounted || !user) return;
     loadCloudLeaderboard();
   }, [mounted, user]);
+
+  // Automatic DB edit for existing logged-in users (backfill Full Name, opt-in, & stats)
+  useEffect(() => {
+    if (!mounted || !user || !isSupabaseConfigured()) return;
+    let isCancelled = false;
+
+    async function autoSyncExistingUser() {
+      if (!user) return;
+      try {
+        await saveCloudProgress(
+          user.id,
+          progress as any,
+          user.email,
+          user.name,
+          isOptedIn
+        );
+        if (!isCancelled) {
+          const records = await fetchCloudLeaderboard();
+          if (!isCancelled) setCloudRecords(records);
+        }
+      } catch (e) {
+        console.warn("[leaderboard] Auto-sync notice:", e);
+      }
+    }
+
+    autoSyncExistingUser();
+    return () => {
+      isCancelled = true;
+    };
+  }, [mounted, user, isOptedIn, progress]);
+
+  // Handle saving Full Name directly to local storage and Supabase
+  const handleSaveName = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = nameInput.trim();
+    if (!trimmed || !user) return;
+
+    const updatedUser = {
+      ...user,
+      name: trimmed,
+    };
+    useLessonStore.getState().setUser(updatedUser);
+    setIsEditingName(false);
+
+    if (isSupabaseConfigured()) {
+      await saveCloudProgress(
+        user.id,
+        progress as any,
+        user.email,
+        trimmed,
+        isOptedIn
+      );
+      loadCloudLeaderboard();
+    }
+    setAnnouncement(`Display name updated to ${trimmed}.`);
+  };
 
   // Handle opt-in toggle with Supabase persistence
   const handleToggleOptIn = async (checked: boolean) => {
@@ -188,8 +266,7 @@ export default function LeaderboardPage() {
       const studentName =
         record.name ||
         rawMeta?.name ||
-        (record.email ? record.email.split("@")[0] : null) ||
-        "Student";
+        formatFallbackName(record.email);
 
       const stats = parseProgressToStats(record.progress);
       const scoreAllTime = isCurrent ? Math.max(stats.scoreAllTime, userStats.scoreAllTime) : stats.scoreAllTime;
@@ -198,7 +275,7 @@ export default function LeaderboardPage() {
       const entryKey = isCurrent ? "current-user" : record.user_id.toLowerCase();
       map.set(entryKey, {
         id: record.user_id,
-        name: isCurrent ? `${user?.name || studentName} (You)` : studentName,
+        name: isCurrent ? (user?.name || studentName) : studentName,
         avatarSeed: record.user_id,
         track: isCurrent
           ? userStats.completedLessons >= 4
@@ -218,7 +295,7 @@ export default function LeaderboardPage() {
 
     // 2. Insert or update the current user if opted in and not already added from cloudRecords
     if (isOptedIn && user && !map.has("current-user")) {
-      const studentName = `${user.name || "Student"} (You)`;
+      const studentName = user.name || formatFallbackName(user.email);
       map.set("current-user", {
         id: user.id || "current-user",
         name: studentName,
@@ -324,6 +401,78 @@ export default function LeaderboardPage() {
           aria-labelledby="privacy-heading"
           className="rounded-xl border border-border bg-card/60 p-5 space-y-4"
         >
+          {/* Student Profile Identity Bar with Full Name Editor */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-sm shrink-0 shadow-xs">
+                {(user?.name?.[0] || user?.email?.[0] || "S").toUpperCase()}
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isEditingName ? (
+                    <form onSubmit={handleSaveName} className="flex items-center gap-1.5 flex-wrap">
+                      <label htmlFor="edit-full-name-input" className="sr-only">Full Name</label>
+                      <input
+                        id="edit-full-name-input"
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="Enter Full Name"
+                        className="px-2.5 py-1 text-xs rounded border border-emerald-500 bg-background text-foreground outline-none font-medium w-48 shadow-xs"
+                        autoFocus
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1"
+                      >
+                        <Check className="h-3 w-3" />
+                        Save Name
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setNameInput(user?.name || "");
+                          setIsEditingName(false);
+                        }}
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </Button>
+                    </form>
+                  ) : (
+                    <>
+                      <span className="text-sm font-bold text-foreground">
+                        {user?.name || "Student"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingName(true)}
+                        className="text-[11px] text-muted-foreground hover:text-emerald-500 flex items-center gap-1 transition-colors underline font-medium"
+                        title="Edit Full Name displayed on leaderboard"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        <span>Edit Full Name</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  {user?.email || "Student Account"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+              <span>Points: <strong className="text-foreground">{userStats.scoreAllTime}</strong></span>
+              <span>•</span>
+              <span>Streak: <strong className="text-foreground">{userStats.streakDays}d</strong></span>
+              <span>•</span>
+              <span>Rank: <strong className="text-emerald-500">{currentUserRank ? `#${currentUserRank}` : "Unranked"}</strong></span>
+            </div>
+          </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">

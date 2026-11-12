@@ -27,6 +27,7 @@ import {
   mapSupabaseUser,
   fetchCloudProgress,
   saveCloudProgress,
+  emailToUUID,
 } from "./supabase";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -414,6 +415,11 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       if (stored) {
         const student = JSON.parse(stored);
         if (student?.id) {
+          // Seamlessly upgrade legacy non-UUID id to valid RFC4122 UUID
+          if (student.id.startsWith("student-") && student.email) {
+            student.id = emailToUUID(student.email);
+            localStorage.setItem("mysql-academy-student-user", JSON.stringify(student));
+          }
           set({ user: student });
         }
       }
@@ -438,7 +444,10 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         get().syncWithCloud();
       } else {
         const current = get().user;
-        if (!current) {
+        if (current) {
+          // Existing student user logged in locally, automatically sync and update DB
+          get().syncWithCloud();
+        } else {
           set({ user: null, cloudSyncStatus: "offline" });
         }
       }
@@ -454,7 +463,9 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         await get().syncWithCloud();
       } else {
         const current = get().user;
-        if (!current) {
+        if (current) {
+          await get().syncWithCloud();
+        } else {
           set({ user: null, cloudSyncStatus: "offline" });
         }
       }
@@ -483,8 +494,17 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       syncProgressToLocalStorage(merged);
       set({ progress: merged });
 
-      // Save back to cloud so both are in perfect parity
-      const ok = await saveCloudProgress(user.id, merged, user.email);
+      // Determine opt-in preference
+      let optIn = false;
+      if (typeof window !== "undefined") {
+        try {
+          const opt = localStorage.getItem("mysql-academy-leaderboard-opt-in");
+          optIn = opt === "true";
+        } catch {}
+      }
+
+      // Save back to cloud and automatically update database with student's Full Name
+      const ok = await saveCloudProgress(user.id, merged, user.email, user.name, optIn);
       if (ok) {
         set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
       } else {
