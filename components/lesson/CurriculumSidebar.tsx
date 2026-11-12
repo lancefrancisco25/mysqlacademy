@@ -17,8 +17,13 @@ import {
   BookOpen,
   Trophy,
   X,
+  Sparkles,
+  Layers,
+  Award,
+  Terminal,
 } from "lucide-react";
 import { TRACKS, LESSONS, getLessonsForTrack, getTrackForLesson } from "@/lib/lessons";
+import { getLessonActivityStats } from "@/lib/lessons/activities";
 import { useLessonStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -32,16 +37,27 @@ const ICON_MAP: Record<string, any> = {
   Zap,
 };
 
+const SUBCAT_ICON_MAP: Record<string, any> = {
+  BookOpen,
+  Sparkles,
+  Layers,
+  Zap,
+  Award,
+  Terminal,
+};
+
 interface CurriculumSidebarProps {
   currentSlug: string;
   isOpen: boolean;
   onClose: () => void;
+  onNavigateSection?: (sectionHash: string) => void;
 }
 
 export function CurriculumSidebar({
   currentSlug,
   isOpen,
   onClose,
+  onNavigateSection,
 }: CurriculumSidebarProps) {
   const progress = useLessonStore((s) => s.progress);
   const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
@@ -57,12 +73,23 @@ export function CurriculumSidebar({
     return initial;
   });
 
-  // Auto-expand track when currentSlug changes
+  // Keep track of which lessons have subcategories expanded (default auto-expand currentSlug)
+  const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>({
+    [currentSlug]: true,
+  });
+
+  // Auto-expand track and lesson when currentSlug changes
   useEffect(() => {
     if (currentTrack) {
       setExpandedTracks((prev) => ({
         ...prev,
         [currentTrack.id]: true,
+      }));
+    }
+    if (currentSlug) {
+      setExpandedLessons((prev) => ({
+        ...prev,
+        [currentSlug]: true,
       }));
     }
   }, [currentSlug, currentTrack]);
@@ -71,6 +98,15 @@ export function CurriculumSidebar({
     setExpandedTracks((prev) => ({
       ...prev,
       [trackId]: !prev[trackId],
+    }));
+  };
+
+  const toggleLessonExpanded = (slug: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedLessons((prev) => ({
+      ...prev,
+      [slug]: !prev[slug],
     }));
   };
 
@@ -192,58 +228,131 @@ export function CurriculumSidebar({
                   <div className="border-t border-border/40 divide-y divide-border/30 bg-muted/20 dark:bg-zinc-950/40">
                     {lessons.map((l, lIdx) => {
                       const isActive = l.slug === currentSlug;
-                      const isComplete = isLessonCompleted(l.slug);
                       const lessonProg = progress[l.slug];
-                      const tasksDone = isComplete
-                        ? l.tasks.length
-                        : (lessonProg?.completedTaskIds?.length || 0);
+                      const activityStats = getLessonActivityStats(l, lessonProg);
+                      const isComplete = activityStats.isCompleted;
+                      const isSubcatExpanded = Boolean(expandedLessons[l.slug]);
 
                       return (
-                        <Link
-                          key={l.slug}
-                          href={`/learn/${l.slug}`}
-                          onClick={() => {
-                            // Auto close on mobile upon clicking a lesson
-                            if (window.innerWidth < 768) {
-                              onClose();
-                            }
-                          }}
-                          className={cn(
-                            "flex items-center justify-between px-3 py-2 text-xs transition-all group",
-                            isActive
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold border-l-2 border-emerald-500 pl-2.5"
-                              : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {isComplete ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                            ) : (
-                              <Circle
-                                className={cn(
-                                  "h-3.5 w-3.5 shrink-0",
-                                  isActive ? "text-emerald-500" : "text-muted-foreground/60"
-                                )}
-                              />
+                        <div key={l.slug} className="flex flex-col">
+                          {/* Module Header Row */}
+                          <div
+                            className={cn(
+                              "flex items-center justify-between px-3 py-2 text-xs transition-all group",
+                              isActive
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold border-l-2 border-emerald-500 pl-2.5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
                             )}
-                            <span className="text-[11px] font-mono opacity-60">
-                              {trackIdx + 1}.{lIdx + 1}
-                            </span>
-                            <span className="truncate">{l.title}</span>
+                          >
+                            <Link
+                              href={`/learn/${l.slug}`}
+                              onClick={() => {
+                                if (window.innerWidth < 768) {
+                                  onClose();
+                                }
+                              }}
+                              className="flex items-center gap-2 min-w-0 flex-1 py-0.5"
+                            >
+                              {isComplete ? (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                              ) : (
+                                <Circle
+                                  className={cn(
+                                    "h-3.5 w-3.5 shrink-0",
+                                    isActive ? "text-emerald-500" : "text-muted-foreground/60"
+                                  )}
+                                />
+                              )}
+                              <span className="text-[11px] font-mono opacity-60">
+                                {trackIdx + 1}.{lIdx + 1}
+                              </span>
+                              <span className="truncate">{l.title}</span>
+                            </Link>
+
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              {isComplete ? (
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium bg-emerald-500/10 px-1 rounded">
+                                  100%
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-mono text-muted-foreground">
+                                  {activityStats.completedActivities}/{activityStats.totalActivities}
+                                </span>
+                              )}
+
+                              {/* Subcategories Expand / Collapse Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => toggleLessonExpanded(l.slug, e)}
+                                className="p-1 rounded hover:bg-accent/60 text-muted-foreground hover:text-foreground transition-colors"
+                                title={isSubcatExpanded ? "Collapse subcategories" : "Expand subcategories"}
+                                aria-label="Toggle module subcategories"
+                              >
+                                {isSubcatExpanded ? (
+                                  <ChevronDown className="h-3 w-3" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="shrink-0 ml-2">
-                            {isComplete ? (
-                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
-                                100%
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-mono text-muted-foreground">
-                                {tasksDone}/{l.tasks.length}
-                              </span>
-                            )}
-                          </div>
-                        </Link>
+                          {/* Subcategories Navigation List */}
+                          {isSubcatExpanded && (
+                            <div className="pl-6 pr-2 py-1.5 space-y-0.5 bg-background/60 dark:bg-zinc-950/60 border-t border-border/20">
+                              {activityStats.subcategories.map((subcat) => {
+                                const SubcatIcon = SUBCAT_ICON_MAP[subcat.iconName] || BookOpen;
+
+                                return (
+                                  <button
+                                    key={subcat.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isActive && onNavigateSection) {
+                                        onNavigateSection(subcat.hash);
+                                      } else {
+                                        window.location.href = `/learn/${l.slug}#${subcat.hash}`;
+                                      }
+                                      if (window.innerWidth < 768) {
+                                        onClose();
+                                      }
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] font-medium transition-colors text-left group",
+                                      subcat.done
+                                        ? "text-foreground hover:bg-emerald-500/10"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <SubcatIcon
+                                        className={cn(
+                                          "h-3 w-3 shrink-0",
+                                          subcat.done
+                                            ? "text-emerald-500"
+                                            : "text-muted-foreground/70 group-hover:text-foreground"
+                                        )}
+                                      />
+                                      <span className="truncate">{subcat.label}</span>
+                                    </div>
+
+                                    <div className="shrink-0 ml-1.5">
+                                      {subcat.done ? (
+                                        <span className="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1 rounded">
+                                          ✓ Done
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] font-mono text-muted-foreground">
+                                          {subcat.completed}/{subcat.total}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>

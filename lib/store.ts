@@ -17,7 +17,8 @@ import {
   getTableInfo,
   getTableData,
 } from "./sql-engine/engine";
-import { getLessonBySlug } from "./lessons";
+import { getLessonBySlug, LESSONS } from "./lessons";
+import { getLessonActivityStats } from "./lessons/activities";
 import { validateTask } from "./agents/validator";
 import { getMentorHint } from "./agents/mentor";
 import { analyzeSQLSafety } from "./sql-engine/safety";
@@ -89,6 +90,7 @@ interface LessonState {
     lessonSlug: string,
     completed: boolean
   ) => void;
+  saveIntuitionProgress: (lessonSlug: string, optionIndex: number) => void;
 
   // Agent feedback
   feedback: AgentFeedback[];
@@ -256,6 +258,32 @@ function mergeProgress(
 }
 
 /**
+ * Helper to push updated progress to Supabase without clobbering existing names.
+ */
+function pushCloudProgressHelper(
+  user: StudentUser | null,
+  progress: Record<string, LessonProgress>,
+  set: any
+) {
+  if (!user || !isSupabaseConfigured()) return;
+  set({ cloudSyncStatus: "syncing" });
+  let optIn = true;
+  if (typeof window !== "undefined") {
+    try {
+      optIn = localStorage.getItem("mysql_leaderboard_opt_in") !== "false";
+    } catch {}
+  }
+  const studentName = user.name && user.name.trim() !== "" && user.name !== "Student" ? user.name : undefined;
+  saveCloudProgress(user.id, progress, user.email, studentName, optIn).then((ok) => {
+    if (ok) {
+      set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
+    } else {
+      set({ cloudSyncStatus: "error" });
+    }
+  });
+}
+
+/**
  * Calculate total points earned by a student from completed modules, tasks, and speed drills.
  * Each mastered lesson awards 150 points.
  * Each completed task awards 35 points.
@@ -266,20 +294,16 @@ export function calculateProgressScore(progress: Record<string, any>): number {
   let completedLessons = 0;
   let completedDrills = 0;
 
-  for (const [key, val] of Object.entries(progress || {})) {
-    if (key.startsWith("_")) continue;
-    const p = val as any;
+  for (const lesson of LESSONS) {
+    const p = progress?.[lesson.slug];
     if (p && Array.isArray(p.completedTaskIds)) {
       completedTasks += p.completedTaskIds.length;
     }
     if (p && Array.isArray(p.completedDrillIds)) {
       completedDrills += p.completedDrillIds.length;
     }
-    if (
-      p &&
-      (p.isCompleted ||
-        (Array.isArray(p.completedTaskIds) && p.completedTaskIds.length >= 2))
-    ) {
+    const stats = getLessonActivityStats(lesson, p);
+    if (stats.isCompleted) {
       completedLessons += 1;
     }
   }
@@ -607,27 +631,23 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
     saveProgress(updatedProgress);
     const targetLesson = getLessonBySlug(lessonSlug);
-    if (targetLesson && updatedProgress[lessonSlug].completedTaskIds.length >= targetLesson.tasks.length && targetLesson.tasks.length > 0) {
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProgress[lessonSlug]);
+      updatedProgress[lessonSlug].isCompleted = stats.isCompleted;
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
         } catch {}
       }
     }
     set({ progress: updatedProgress });
 
     // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   toggleTask: (lessonSlug: string, taskId: string) => {
@@ -654,10 +674,16 @@ export const useLessonStore = create<LessonState>((set, get) => ({
 
     saveProgress(updatedProgress);
     const targetLesson = getLessonBySlug(lessonSlug);
-    if (targetLesson && updatedProgress[lessonSlug].completedTaskIds.length >= targetLesson.tasks.length && targetLesson.tasks.length > 0) {
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProgress[lessonSlug]);
+      updatedProgress[lessonSlug].isCompleted = stats.isCompleted;
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
         } catch {}
       }
     }
@@ -668,17 +694,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     }
 
     // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   verifyPendingTasks: () => {
@@ -706,20 +722,11 @@ export const useLessonStore = create<LessonState>((set, get) => ({
   },
 
   isLessonCompleted: (lessonSlug: string) => {
-    const p = get().progress[lessonSlug];
-    if (p?.isCompleted) {
-      return true;
-    }
-    if (typeof window !== "undefined") {
-      if (localStorage.getItem(`mysql-academy-lesson-completed-${lessonSlug}`) === "true") {
-        return true;
-      }
-    }
     const lesson = getLessonBySlug(lessonSlug);
-    if (!lesson || !p || !p.completedTaskIds || !lesson.tasks || lesson.tasks.length === 0) {
-      return false;
-    }
-    return p.completedTaskIds.length >= lesson.tasks.length;
+    if (!lesson) return false;
+    const p = get().progress[lessonSlug];
+    const stats = getLessonActivityStats(lesson, p);
+    return stats.isCompleted;
   },
 
   markLessonComplete: (lessonSlug: string) => {
@@ -752,6 +759,8 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         scenarioCode: scenarioExercise?.solutionSQL || "",
         scenarioCompletedRequirements: scenarioExercise?.requirements?.map((r: any) => r.id) || [],
         dragBlockCompleted: Boolean(lesson.exercises?.some((e) => e.type === "drag-block")),
+        intuitionCompleted: Boolean(lesson.intuitionCheck),
+        intuitionOption: lesson.intuitionCheck?.correctIndex ?? 0,
         isCompleted: true,
         lastAccessed: Date.now(),
       },
@@ -759,12 +768,15 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     saveProgress(updatedProgress);
     syncProgressToLocalStorage(updatedProgress);
 
-    if (typeof window !== "undefined" && lesson.intuitionCheck) {
+    if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(
-          `mysql-academy-intuition-${lessonSlug}`,
-          JSON.stringify({ selectedOption: lesson.intuitionCheck.correctIndex })
-        );
+        localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+        if (lesson.intuitionCheck) {
+          localStorage.setItem(
+            `mysql-academy-intuition-${lessonSlug}`,
+            JSON.stringify({ selectedOption: lesson.intuitionCheck.correctIndex })
+          );
+        }
       } catch {}
     }
 
@@ -772,17 +784,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     toast.success("Lesson marked complete! All items pre-filled.");
 
     // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   resetLessonProgress: (lessonSlug: string) => {
@@ -800,6 +802,8 @@ export const useLessonStore = create<LessonState>((set, get) => ({
         scenarioCode: "",
         scenarioCompletedRequirements: [],
         dragBlockCompleted: false,
+        intuitionCompleted: false,
+        intuitionOption: undefined,
         isCompleted: false,
         lastAccessed: Date.now(),
       },
@@ -828,17 +832,7 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     toast.info("Lesson reset to initial state.");
 
     // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   saveDrillProgress: (lessonSlug: string, passedIds: string[], codes: Record<string, string>) => {
@@ -850,22 +844,30 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     };
 
     const targetLesson = getLessonBySlug(lessonSlug);
-    const allDrillsPassed =
-      targetLesson?.syntaxDrills && targetLesson.syntaxDrills.length > 0
-        ? passedIds.length >= targetLesson.syntaxDrills.length
-        : false;
+    const updatedProg: LessonProgress = {
+      ...currentLessonProg,
+      completedDrillIds: passedIds,
+      drillCodes: codes,
+      lastAccessed: Date.now(),
+    };
 
-    const updatedIsCompleted = allDrillsPassed ? currentLessonProg.isCompleted : false;
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProg);
+      updatedProg.isCompleted = stats.isCompleted;
+      if (typeof window !== "undefined") {
+        try {
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
+        } catch {}
+      }
+    }
 
     const updatedProgress = {
       ...currentProgress,
-      [lessonSlug]: {
-        ...currentLessonProg,
-        completedDrillIds: passedIds,
-        drillCodes: codes,
-        isCompleted: updatedIsCompleted,
-        lastAccessed: Date.now(),
-      },
+      [lessonSlug]: updatedProg,
     };
 
     saveProgress(updatedProgress);
@@ -877,29 +879,14 @@ export const useLessonStore = create<LessonState>((set, get) => ({
           JSON.stringify({
             passedIds,
             codes,
-            completed: allDrillsPassed,
+            completed: Boolean(updatedProg.isCompleted),
           })
         );
-        if (!allDrillsPassed) {
-          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
-        }
       } catch {}
     }
 
     set({ progress: updatedProgress });
-
-    // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   saveCheckpointProgress: (
@@ -917,21 +904,30 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     };
 
     const targetLesson = getLessonBySlug(lessonSlug);
-    const allCheckpointPassed = targetLesson?.checkpointExam
-      ? passedQuestionIds.length >= targetLesson.checkpointExam.questions.length
-      : completed;
+    const updatedProg: LessonProgress = {
+      ...currentLessonProg,
+      checkpointPassedIds: passedQuestionIds,
+      checkpointCodes: codes,
+      lastAccessed: Date.now(),
+    };
 
-    const updatedIsCompleted = allCheckpointPassed ? currentLessonProg.isCompleted : false;
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProg);
+      updatedProg.isCompleted = stats.isCompleted;
+      if (typeof window !== "undefined") {
+        try {
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
+        } catch {}
+      }
+    }
 
     const updatedProgress = {
       ...currentProgress,
-      [lessonSlug]: {
-        ...currentLessonProg,
-        checkpointPassedIds: passedQuestionIds,
-        checkpointCodes: codes,
-        isCompleted: updatedIsCompleted,
-        lastAccessed: Date.now(),
-      },
+      [lessonSlug]: updatedProg,
     };
 
     saveProgress(updatedProgress);
@@ -943,29 +939,14 @@ export const useLessonStore = create<LessonState>((set, get) => ({
           JSON.stringify({
             passedQuestionIds,
             codes,
-            completed: allCheckpointPassed,
+            completed: Boolean(updatedProg.isCompleted),
           })
         );
-        if (!allCheckpointPassed) {
-          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
-        }
       } catch {}
     }
 
     set({ progress: updatedProgress });
-
-    // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   saveScenarioProgress: (
@@ -982,18 +963,32 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
-    const updatedIsCompleted = completed ? currentLessonProg.isCompleted : false;
+    const targetLesson = getLessonBySlug(lessonSlug);
+    const updatedProg: LessonProgress = {
+      ...currentLessonProg,
+      scenarioCompleted: completed,
+      scenarioCode: code,
+      scenarioCompletedRequirements: completedRequirements,
+      lastAccessed: Date.now(),
+    };
+
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProg);
+      updatedProg.isCompleted = stats.isCompleted;
+      if (typeof window !== "undefined") {
+        try {
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
+        } catch {}
+      }
+    }
 
     const updatedProgress = {
       ...currentProgress,
-      [lessonSlug]: {
-        ...currentLessonProg,
-        scenarioCompleted: completed,
-        scenarioCode: code,
-        scenarioCompletedRequirements: completedRequirements,
-        isCompleted: updatedIsCompleted,
-        lastAccessed: Date.now(),
-      },
+      [lessonSlug]: updatedProg,
     };
 
     saveProgress(updatedProgress);
@@ -1009,26 +1004,11 @@ export const useLessonStore = create<LessonState>((set, get) => ({
             completedAt: Date.now(),
           })
         );
-        if (!completed) {
-          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
-        }
       } catch {}
     }
 
     set({ progress: updatedProgress });
-
-    // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
-    }
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   saveDragBlockProgress: (
@@ -1043,16 +1023,30 @@ export const useLessonStore = create<LessonState>((set, get) => ({
       lastAccessed: Date.now(),
     };
 
-    const updatedIsCompleted = completed ? currentLessonProg.isCompleted : false;
+    const targetLesson = getLessonBySlug(lessonSlug);
+    const updatedProg: LessonProgress = {
+      ...currentLessonProg,
+      dragBlockCompleted: completed,
+      lastAccessed: Date.now(),
+    };
+
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProg);
+      updatedProg.isCompleted = stats.isCompleted;
+      if (typeof window !== "undefined") {
+        try {
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
+        } catch {}
+      }
+    }
 
     const updatedProgress = {
       ...currentProgress,
-      [lessonSlug]: {
-        ...currentLessonProg,
-        dragBlockCompleted: completed,
-        isCompleted: updatedIsCompleted,
-        lastAccessed: Date.now(),
-      },
+      [lessonSlug]: updatedProg,
     };
 
     saveProgress(updatedProgress);
@@ -1063,52 +1057,91 @@ export const useLessonStore = create<LessonState>((set, get) => ({
           `mysql-academy-dragblock-${exerciseId}`,
           JSON.stringify({ completed })
         );
-        if (!completed) {
-          localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
-        }
       } catch {}
     }
 
     set({ progress: updatedProgress });
+    pushCloudProgressHelper(get().user, updatedProgress, set);
+  },
 
-    // Cloud push if logged in
-    const user = get().user;
-    if (user && isSupabaseConfigured()) {
-      set({ cloudSyncStatus: "syncing" });
-      saveCloudProgress(user.id, updatedProgress, user.email).then((ok) => {
-        if (ok) {
-          set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
-        } else {
-          set({ cloudSyncStatus: "error" });
-        }
-      });
+  saveIntuitionProgress: (lessonSlug: string, optionIndex: number) => {
+    const currentProgress = get().progress;
+    const currentLessonProg = currentProgress[lessonSlug] || {
+      lessonSlug,
+      completedTaskIds: [],
+      lastAccessed: Date.now(),
+    };
+
+    const targetLesson = getLessonBySlug(lessonSlug);
+    const updatedProg: LessonProgress = {
+      ...currentLessonProg,
+      intuitionCompleted: true,
+      intuitionOption: optionIndex,
+      lastAccessed: Date.now(),
+    };
+
+    if (targetLesson) {
+      const stats = getLessonActivityStats(targetLesson, updatedProg);
+      updatedProg.isCompleted = stats.isCompleted;
+      if (typeof window !== "undefined") {
+        try {
+          if (stats.isCompleted) {
+            localStorage.setItem(`mysql-academy-lesson-completed-${lessonSlug}`, "true");
+          } else {
+            localStorage.removeItem(`mysql-academy-lesson-completed-${lessonSlug}`);
+          }
+        } catch {}
+      }
     }
+
+    const updatedProgress = {
+      ...currentProgress,
+      [lessonSlug]: updatedProg,
+    };
+
+    saveProgress(updatedProgress);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          `mysql-academy-intuition-${lessonSlug}`,
+          JSON.stringify({ selectedOption: optionIndex })
+        );
+      } catch {}
+    }
+
+    set({ progress: updatedProgress });
+    pushCloudProgressHelper(get().user, updatedProgress, set);
   },
 
   getLessonProgress: (lessonSlug: string) => {
-    const lesson = get().currentLesson;
+    const lesson = getLessonBySlug(lessonSlug);
+    if (!lesson) return 0;
     const p = get().progress[lessonSlug];
-    if (!lesson || !p || !lesson.tasks || lesson.tasks.length === 0) return 0;
-    return Math.round((p.completedTaskIds.length / lesson.tasks.length) * 100);
+    const stats = getLessonActivityStats(lesson, p);
+    return stats.percent;
   },
 
   getOverallStats: () => {
     const progress = get().progress;
-    const slugs = Object.keys(progress);
     let totalTasksDone = 0;
     let completedLessons = 0;
 
-    slugs.forEach((slug) => {
-      const p = progress[slug];
+    LESSONS.forEach((lesson) => {
+      const p = progress[lesson.slug];
       if (p && p.completedTaskIds) {
         totalTasksDone += p.completedTaskIds.length;
-        if (p.completedTaskIds.length >= 2) {
-          completedLessons += 1;
-        }
+      }
+      const stats = getLessonActivityStats(lesson, p);
+      if (stats.isCompleted) {
+        completedLessons += 1;
       }
     });
 
-    const masteryScore = Math.min(100, Math.round(totalTasksDone * 5.5));
+    const masteryScore = Math.min(
+      100,
+      Math.round((completedLessons / Math.max(LESSONS.length, 1)) * 100)
+    );
     return { completedLessons, totalTasksDone, masteryScore };
   },
 

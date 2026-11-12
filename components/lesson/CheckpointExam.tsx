@@ -25,6 +25,7 @@ import { useLessonStore } from "@/lib/store";
 import { validateTask } from "@/lib/agents/validator";
 import { rollbackIfInTransaction, getTableNames } from "@/lib/sql-engine/engine";
 import { cn } from "@/lib/utils";
+import confetti from "canvas-confetti";
 import type { CheckpointExam as CheckpointExamType, CheckpointQuestion, Task, QueryResult } from "@/types";
 
 interface CheckpointExamProps {
@@ -322,6 +323,20 @@ export function CheckpointExam({
 
   const passedCount = exam.questions.filter((q) => questionStates[q.id]?.passed).length;
   const isAllPassed = passedCount === exam.questions.length && exam.questions.length > 0;
+  const [hasCelebrated, setHasCelebrated] = useState(false);
+
+  useEffect(() => {
+    if (isAllPassed && !hasCelebrated) {
+      setHasCelebrated(true);
+      try {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch {}
+    }
+  }, [isAllPassed, hasCelebrated]);
 
   return (
     <div className="rounded-2xl border-2 border-emerald-500/40 bg-card p-6 sm:p-8 space-y-6 shadow-md relative overflow-hidden">

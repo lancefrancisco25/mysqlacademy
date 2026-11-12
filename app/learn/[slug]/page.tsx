@@ -104,6 +104,38 @@ export default function LessonWorkspacePage() {
     }
   }, []);
 
+  // Handle URL hash navigation (e.g. #interactive-lab or #syntax-speed-drills)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const h = window.location.hash.replace("#", "");
+      if (h === "interactive-lab" || h === "lab") {
+        setViewMode("lab");
+      } else {
+        setViewMode("concept");
+        setTimeout(() => {
+          const el = document.getElementById(h);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth" });
+          }
+        }, 150);
+      }
+    }
+  }, [slug]);
+
+  const handleNavigateSection = (sectionHash: string) => {
+    if (sectionHash === "interactive-lab" || sectionHash === "lab") {
+      setViewMode("lab");
+    } else {
+      setViewMode("concept");
+      setTimeout(() => {
+        const el = document.getElementById(sectionHash);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 50);
+    }
+  };
+
   // Reset to concept mode when slug changes (so each lesson starts with the concept primer)
   useEffect(() => {
     setViewMode("concept");
@@ -394,6 +426,7 @@ export default function LessonWorkspacePage() {
           currentSlug={slug}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          onNavigateSection={handleNavigateSection}
         />
 
         {/* ── Main View: Full-Screen Concept Primer OR Split-Pane Lab ─── */}

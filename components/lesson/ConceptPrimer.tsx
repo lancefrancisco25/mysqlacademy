@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   BookOpen,
@@ -18,13 +18,17 @@ import {
   Copy,
   Check,
   RotateCcw,
+  Trophy,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DragBlockExercise } from "./DragBlockExercise";
 import { ScenarioExercise } from "./ScenarioExercise";
 import { SyntaxDrillSection } from "./SyntaxDrillSection";
 import { CheckpointExam } from "./CheckpointExam";
+import { useLessonStore } from "@/lib/store";
+import { getLessonActivityStats } from "@/lib/lessons/activities";
 import type { Lesson, TrackInfo } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -46,9 +50,37 @@ export function ConceptPrimer({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [hasCelebrated, setHasCelebrated] = useState(false);
 
-  // Rehydrate intuition check selection across page refreshes
-  React.useEffect(() => {
+  const progress = useLessonStore((s) => s.progress);
+  const saveIntuitionProgress = useLessonStore((s) => s.saveIntuitionProgress);
+
+  const activityStats = useMemo(() => {
+    return getLessonActivityStats(lesson, progress[lesson.slug]);
+  }, [lesson, progress]);
+
+  // Trigger celebration confetti when all module activities are completed
+  useEffect(() => {
+    if (activityStats.isCompleted && !hasCelebrated) {
+      setHasCelebrated(true);
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch {}
+    }
+  }, [activityStats.isCompleted, hasCelebrated]);
+
+  // Rehydrate intuition check selection across page refreshes or cloud sync
+  useEffect(() => {
+    const prog = progress[lesson.slug];
+    if (typeof prog?.intuitionOption === "number") {
+      setSelectedOption(prog.intuitionOption);
+      setHasAnswered(true);
+      return;
+    }
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem(`mysql-academy-intuition-${lesson.slug}`);
@@ -64,19 +96,12 @@ export function ConceptPrimer({
     }
     setSelectedOption(null);
     setHasAnswered(false);
-  }, [lesson.slug]);
+  }, [lesson.slug, progress]);
 
   const handleSelectIntuitionOption = (idx: number) => {
     setSelectedOption(idx);
     setHasAnswered(true);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(
-          `mysql-academy-intuition-${lesson.slug}`,
-          JSON.stringify({ selectedOption: idx })
-        );
-      } catch {}
-    }
+    saveIntuitionProgress(lesson.slug, idx);
   };
 
   const handleCopy = (code: string, idx: number) => {
@@ -303,7 +328,7 @@ export function ConceptPrimer({
 
         {/* ── 7. Quick Intuition Checkpoint ──────────────────────────── */}
         {lesson.intuitionCheck && (
-          <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 dark:bg-gradient-to-br dark:from-sky-500/10 dark:via-sky-500/5 dark:to-transparent p-6 sm:p-8 space-y-4">
+          <div id="intuition-check" className="rounded-2xl border border-sky-500/30 bg-sky-500/5 dark:bg-gradient-to-br dark:from-sky-500/10 dark:via-sky-500/5 dark:to-transparent p-6 sm:p-8 space-y-4 scroll-mt-20">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-sky-500 dark:text-sky-400" />
               <h3 className="text-lg font-bold tracking-tight text-foreground">
@@ -363,7 +388,7 @@ export function ConceptPrimer({
 
         {/* ── 8. Interactive Hands-on Exercises (Drag & Drop / Scenarios) ── */}
         {lesson.exercises && lesson.exercises.length > 0 && (
-          <div className="space-y-8">
+          <div id="scenario-blueprint" className="space-y-8 scroll-mt-20">
             <div className="flex items-center gap-2 border-b border-border/60 pb-2">
               <Sparkles className="h-5 w-5 text-sky-500" />
               <h2 className="text-xl font-bold tracking-tight text-foreground">
@@ -386,42 +411,71 @@ export function ConceptPrimer({
 
         {/* ── 9. Situational Syntax Drills (Pure Syntax Verification) ─ */}
         {lesson.syntaxDrills && lesson.syntaxDrills.length > 0 && (
-          <SyntaxDrillSection
-            lessonSlug={lesson.slug}
-            drills={lesson.syntaxDrills}
-          />
+          <div id="syntax-speed-drills" className="scroll-mt-20">
+            <SyntaxDrillSection
+              lessonSlug={lesson.slug}
+              drills={lesson.syntaxDrills}
+            />
+          </div>
         )}
 
         {/* ── 10. Final Lesson Checkpoint Exam ───────────────────────── */}
         {lesson.checkpointExam && (
-          <CheckpointExam
-            exam={lesson.checkpointExam}
-            nextLessonSlug={nextLesson?.slug}
-            nextLessonTitle={nextLesson?.title}
-            onOpenLab={onStartLab}
-          />
+          <div id="final-lesson-checkpoint" className="scroll-mt-20">
+            <CheckpointExam
+              exam={lesson.checkpointExam}
+              nextLessonSlug={nextLesson?.slug}
+              nextLessonTitle={nextLesson?.title}
+              onOpenLab={onStartLab}
+            />
+          </div>
         )}
 
-        {/* ── 10. Call to Action: Launch Lab ──────────────────────────── */}
-        <div className="rounded-2xl border border-emerald-500/40 bg-card p-8 text-center space-y-4 shadow-xl">
-          <h3 className="text-2xl font-bold tracking-tight">
-            Ready to Build Muscle Memory?
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-            You&apos;ve got the intuition down. Now jump into the interactive CLI sandbox to write the queries and let the autonomous AI grader verify your results!
-          </p>
-          <div className="pt-2">
-            <Button
-              size="lg"
-              onClick={onStartLab}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-medium px-8 text-base shadow-lg shadow-emerald-950/30"
-            >
-              <Terminal className="h-5 w-5" />
-              Launch MySQL Terminal Lab
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+        {/* ── 11. Module Mastered Celebration & Next Module Button ───── */}
+        {activityStats.isCompleted && (
+          <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 dark:bg-emerald-950/40 p-6 sm:p-8 text-center space-y-4 shadow-xl animate-fade-in">
+            <div className="inline-flex p-3 rounded-full bg-emerald-500/20 text-emerald-500 text-3xl">
+              🎉
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                Module Mastered!
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                All {activityStats.totalActivities} Module Activities Completed
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
+                Excellent work! You have satisfied every requirement: Intuition Check, Hands-On Scenarios, Syntax Drills, Checkpoint Exam, and Interactive Lab.
+              </p>
+            </div>
+
+            {nextLesson ? (
+              <div className="pt-2">
+                <Link href={`/learn/${nextLesson.slug}`}>
+                  <Button
+                    size="lg"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-semibold px-8 text-base shadow-lg shadow-emerald-950/30 transition-transform active:scale-95"
+                  >
+                    <span>Continue to Next Module: {nextLesson.title}</span>
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="pt-2">
+                <Link href="/leaderboard">
+                  <Button
+                    size="lg"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 font-semibold px-8 text-base shadow-lg shadow-emerald-950/30"
+                  >
+                    <span>View Cohort Leaderboard &amp; Mastery Map</span>
+                    <Trophy className="h-5 w-5 text-amber-300" />
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* ── Lesson Navigation Footer ───────────────────────────────── */}
         <div className="flex items-center justify-between pt-6 border-t border-border/60">

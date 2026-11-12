@@ -253,27 +253,34 @@ export async function saveCloudProgress(
   if (!client || !userId) return false;
 
   try {
-    const studentName = name || "Student";
-    const payloadWithMeta = {
+    const hasValidName = Boolean(name && name.trim() && name.trim().toLowerCase() !== "student");
+    const studentName = hasValidName ? name!.trim() : undefined;
+
+    const payloadWithMeta: Record<string, any> = {
       ...progress,
       _meta: {
         optIn,
-        name: studentName,
+        ...(studentName ? { name: studentName } : {}),
         email: email || null,
         updatedAt: new Date().toISOString(),
       },
     };
 
+    const recordToUpsert: Record<string, any> = {
+      user_id: userId,
+      email: email || null,
+      opt_in: optIn,
+      progress: payloadWithMeta,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (studentName) {
+      recordToUpsert.name = studentName;
+    }
+
     // First attempt: upsert including optional name & opt_in columns
     const { error: fullError } = await client.from("user_progress").upsert(
-      {
-        user_id: userId,
-        email: email || null,
-        name: studentName,
-        opt_in: optIn,
-        progress: payloadWithMeta,
-        updated_at: new Date().toISOString(),
-      },
+      recordToUpsert,
       { onConflict: "user_id" }
     );
 

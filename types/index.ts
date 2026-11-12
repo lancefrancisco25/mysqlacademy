@@ -248,6 +248,10 @@ export interface LessonProgress {
   scenarioCompletedRequirements?: string[];
   /** Whether the drag block exercise was completed */
   dragBlockCompleted?: boolean;
+  /** Whether the quick intuition check was answered */
+  intuitionCompleted?: boolean;
+  /** Selected option index for quick intuition check */
+  intuitionOption?: number;
 }
 
 // ─── Student Authentication & Cloud Sync ───────────────────────────────────
