@@ -18,11 +18,56 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { AuthBarrier } from "@/components/auth/AuthBarrier";
 import { MOCK_STUDENTS, type LeaderboardEntry } from "@/lib/leaderboard-data";
 import { useLessonStore } from "@/lib/store";
+import {
+  fetchCloudLeaderboard,
+  saveCloudProgress,
+  isSupabaseConfigured,
+  type CloudProgressRecord,
+} from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const STORAGE_OPT_IN_KEY = "mysql-academy-leaderboard-opt-in";
+
+function parseProgressToStats(rawProgress: Record<string, any>) {
+  let completedTasks = 0;
+  let completedLessons = 0;
+  let completedDrills = 0;
+
+  for (const [key, val] of Object.entries(rawProgress || {})) {
+    if (key.startsWith("_")) continue;
+    const p = val as any;
+    if (p && Array.isArray(p.completedTaskIds)) {
+      completedTasks += p.completedTaskIds.length;
+    }
+    if (p && Array.isArray(p.completedDrillIds)) {
+      completedDrills += p.completedDrillIds.length;
+    }
+    if (p && (p.isCompleted || (Array.isArray(p.completedTaskIds) && p.completedTaskIds.length >= 2))) {
+      completedLessons += 1;
+    }
+  }
+
+  const scoreAllTime = completedLessons * 150 + completedTasks * 35 + completedDrills * 20;
+  const scoreThisWeek = Math.max(Math.round(scoreAllTime * 0.45), completedTasks * 20);
+  const streakDays = completedLessons > 0 ? Math.min(completedLessons * 2 + 1, 14) : 0;
+
+  let track = "Relational Foundations";
+  if (completedLessons >= 6) track = "Transactions & Indexing";
+  else if (completedLessons >= 4) track = "Joins & Subqueries";
+  else if (completedLessons >= 2) track = "CRUD Operations";
+
+  return {
+    completedLessons,
+    completedTasks,
+    scoreAllTime,
+    scoreThisWeek,
+    streakDays,
+    track,
+  };
+}
 
 export default function LeaderboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -30,6 +75,8 @@ export default function LeaderboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOptedIn, setIsOptedIn] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [cloudRecords, setCloudRecords] = useState<CloudProgressRecord[]>([]);
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
 
   const user = useLessonStore((s) => s.user);
   const progress = useLessonStore((s) => s.progress);
@@ -47,7 +94,35 @@ export default function LeaderboardPage() {
     }
   }, []);
 
-  // Handle opt-in toggle
+  // Fetch real students from Supabase database
+  useEffect(() => {
+    if (!mounted || !user) return;
+
+    let isSubscribed = true;
+    async function loadCloudLeaderboard() {
+      if (!isSupabaseConfigured()) return;
+      try {
+        setIsLoadingCloud(true);
+        const records = await fetchCloudLeaderboard();
+        if (isSubscribed) {
+          setCloudRecords(records);
+        }
+      } catch (err) {
+        console.warn("[leaderboard] Cloud fetch notice:", err);
+      } finally {
+        if (isSubscribed) {
+          setIsLoadingCloud(false);
+        }
+      }
+    }
+
+    loadCloudLeaderboard();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [mounted, user]);
+
+  // Handle opt-in toggle with Supabase persistence
   const handleToggleOptIn = (checked: boolean) => {
     setIsOptedIn(checked);
     if (typeof window !== "undefined") {
@@ -55,6 +130,20 @@ export default function LeaderboardPage() {
         localStorage.setItem(STORAGE_OPT_IN_KEY, String(checked));
       } catch {}
     }
+
+    // Persist opt-in preference to real Supabase database if logged in
+    if (user && isSupabaseConfigured()) {
+      const updatedProgress = {
+        ...progress,
+        _meta: {
+          optIn: checked,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+        },
+      };
+      saveCloudProgress(user.id, updatedProgress as any, user.email);
+    }
+
     const message = checked
       ? "Leaderboard visibility enabled. Your rank and score are now visible on the public cohort board."
       : "Leaderboard visibility disabled. Your profile is now hidden from the public cohort board.";
@@ -74,7 +163,6 @@ export default function LeaderboardPage() {
     const calculatedScore =
       stats.completedLessons * 150 + stats.totalTasksDone * 35 + totalDrills * 20;
 
-    // Approximate weekly activity (fraction of total score or minimum baseline)
     const weeklyScore = Math.max(Math.round(calculatedScore * 0.45), stats.totalTasksDone * 20);
 
     return {
@@ -86,27 +174,66 @@ export default function LeaderboardPage() {
     };
   }, [progress, getOverallStats]);
 
-  // Build combined cohort entries (including current user when opted in)
+  // Build combined cohort entries from real Supabase records + cohort benchmarks
   const cohortEntries: LeaderboardEntry[] = useMemo(() => {
-    const list: LeaderboardEntry[] = [...MOCK_STUDENTS];
+    const map = new Map<string, LeaderboardEntry>();
 
-    if (isOptedIn) {
-      const studentName = user?.name || "You (Student)";
-      const currentUserEntry: LeaderboardEntry = {
-        id: user?.id || "current-user",
+    // 1. Add baseline cohort members
+    MOCK_STUDENTS.forEach((student) => {
+      map.set(student.name.toLowerCase(), { ...student });
+    });
+
+    // 2. Parse real records from Supabase user_progress table
+    cloudRecords.forEach((record) => {
+      const rawMeta = record.progress?._meta;
+      // Skip if explicitly opted out in database
+      if (rawMeta?.optIn === false) return;
+
+      const studentName =
+        rawMeta?.name ||
+        (record.email ? record.email.split("@")[0] : null) ||
+        "Student";
+
+      const stats = parseProgressToStats(record.progress);
+      const isCurrent = Boolean(user && (record.user_id === user.id || record.email === user.email));
+
+      map.set(studentName.toLowerCase(), {
+        id: record.user_id,
         name: studentName,
-        avatarSeed: user?.id || "StudentUser",
-        track: userStats.completedLessons >= 4 ? "Joins & Subqueries" : userStats.completedLessons >= 2 ? "CRUD Operations" : "Relational Foundations",
+        avatarSeed: record.user_id,
+        track: stats.track,
+        completedLessons: stats.completedLessons,
+        completedTasks: stats.completedTasks,
+        streakDays: stats.streakDays,
+        scoreAllTime: stats.scoreAllTime,
+        scoreThisWeek: stats.scoreThisWeek,
+        isCurrentUser: isCurrent,
+      });
+    });
+
+    // 3. Insert or update the current user if opted in
+    if (isOptedIn && user) {
+      const studentName = user.name || "You (Student)";
+      map.set(studentName.toLowerCase(), {
+        id: user.id || "current-user",
+        name: studentName,
+        avatarSeed: user.id || "StudentUser",
+        track:
+          userStats.completedLessons >= 4
+            ? "Joins & Subqueries"
+            : userStats.completedLessons >= 2
+            ? "CRUD Operations"
+            : "Relational Foundations",
         completedLessons: userStats.completedLessons,
         completedTasks: userStats.completedTasks,
         streakDays: userStats.streakDays,
         scoreAllTime: userStats.scoreAllTime,
         scoreThisWeek: userStats.scoreThisWeek,
         isCurrentUser: true,
-      };
-
-      list.push(currentUserEntry);
+      });
     }
+
+    const list = Array.from(map.values());
 
     // Sort by chosen period score descending
     return list.sort((a, b) => {
@@ -114,7 +241,7 @@ export default function LeaderboardPage() {
       const scoreB = period === "all-time" ? b.scoreAllTime : b.scoreThisWeek;
       return scoreB - scoreA;
     });
-  }, [isOptedIn, user, userStats, period]);
+  }, [cloudRecords, isOptedIn, user, userStats, period]);
 
   // Filter cohort by search query
   const filteredEntries = useMemo(() => {
@@ -143,7 +270,11 @@ export default function LeaderboardPage() {
         {announcement}
       </div>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8">
+      <AuthBarrier
+        title="Student Sign-In Required"
+        description="Sign in with your student account to access the cohort leaderboard, publish your score, and review rankings."
+      >
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8">
         {/* ── Page Header ────────────────────────────────────────────── */}
         <section aria-labelledby="leaderboard-heading" className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-6">
@@ -535,6 +666,7 @@ export default function LeaderboardPage() {
           </div>
         </section>
       </main>
+      </AuthBarrier>
     </div>
   );
 }

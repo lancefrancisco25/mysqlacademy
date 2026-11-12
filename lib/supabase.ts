@@ -133,8 +133,37 @@ export async function fetchCloudProgress(
 }
 
 /**
- * Save / Upsert progress to Supabase user_progress table
+ * Fetch all students' progress for the cohort leaderboard from Supabase
  */
+export interface CloudProgressRecord {
+  user_id: string;
+  email: string | null;
+  progress: Record<string, any>;
+  updated_at: string;
+}
+
+export async function fetchCloudLeaderboard(): Promise<CloudProgressRecord[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  try {
+    const { data, error } = await client
+      .from("user_progress")
+      .select("user_id, email, progress, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.warn("[supabase] fetchCloudLeaderboard error:", error.message);
+      return [];
+    }
+
+    return (data as CloudProgressRecord[]) || [];
+  } catch (err) {
+    console.warn("[supabase] fetchCloudLeaderboard exception:", err);
+    return [];
+  }
+}
 export async function saveCloudProgress(
   userId: string,
   progress: Record<string, LessonProgress>,

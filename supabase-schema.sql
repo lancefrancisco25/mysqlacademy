@@ -14,12 +14,14 @@ create table if not exists public.user_progress (
 -- 2. Turn on Row Level Security (RLS)
 alter table public.user_progress enable row level security;
 
--- 3. Policy: Students can view only their own progress
+-- 3. Policy: Authenticated students can view progress for the cohort leaderboard
 drop policy if exists "Users can read own progress" on public.user_progress;
-create policy "Users can read own progress"
+drop policy if exists "Authenticated users can read progress for leaderboard" on public.user_progress;
+create policy "Authenticated users can read progress for leaderboard"
   on public.user_progress
   for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using (true);
 
 -- 4. Policy: Students can insert their own progress
 drop policy if exists "Users can insert own progress" on public.user_progress;
