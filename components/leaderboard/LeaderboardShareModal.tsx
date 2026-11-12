@@ -133,94 +133,109 @@ export function LeaderboardShareModal({
     ctx.stroke();
 
     // 5. Header Branding: Westfield / MySQL Academy
-    let currentY = isStory ? 170 : 130;
+    let currentY = isStory ? 175 : 125;
 
-    // Database Logo Icon
+    // Database Logo Icon (scaled to 52px wide x 44px tall)
     ctx.save();
-    ctx.translate(margin + 44, currentY - 26);
-    // Draw 3 cylinder disks in emerald
+    ctx.translate(margin + 44, currentY - 32);
     ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 3.5;
-    ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+    ctx.lineWidth = 4;
+    ctx.fillStyle = "rgba(16, 185, 129, 0.28)";
 
     // Top cap
     ctx.beginPath();
-    ctx.ellipse(22, 10, 18, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(26, 11, 22, 9, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     // Middle body
     ctx.beginPath();
-    ctx.moveTo(4, 10);
-    ctx.lineTo(4, 38);
-    ctx.ellipse(22, 38, 18, 7, 0, 0, Math.PI, false);
-    ctx.lineTo(40, 10);
+    ctx.moveTo(4, 11);
+    ctx.lineTo(4, 42);
+    ctx.ellipse(26, 42, 22, 9, 0, 0, Math.PI, false);
+    ctx.lineTo(48, 11);
     ctx.stroke();
 
     // Middle divider
     ctx.beginPath();
-    ctx.ellipse(22, 24, 18, 7, 0, 0, Math.PI, false);
+    ctx.ellipse(26, 27, 22, 9, 0, 0, Math.PI, false);
     ctx.stroke();
     ctx.restore();
 
     // Brand Name Text
-    ctx.font = "bold 34px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const brandFontSize = isStory ? 46 : 40;
+    ctx.font = `bold ${brandFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
-    ctx.fillText("MySQL", margin + 104, currentY);
+    ctx.fillText("MySQL", margin + 115, currentY);
+    const mysqlWidth = ctx.measureText("MySQL").width;
     ctx.fillStyle = "#10b981";
-    ctx.fillText("Academy", margin + 218, currentY);
+    ctx.fillText("Academy", margin + 115 + mysqlWidth + 8, currentY);
 
     // Verified Cohort Pill (Top Right)
     const pillText = "ACADEMIC STANDINGS";
-    ctx.font = "bold 18px monospace";
-    const pillW = ctx.measureText(pillText).width + 36;
+    const pillFontSize = isStory ? 22 : 19;
+    ctx.font = `bold ${pillFontSize}px monospace`;
+    const pillW = ctx.measureText(pillText).width + 40;
+    const pillH = isStory ? 48 : 42;
     const pillX = width - margin - 44 - pillW;
-    const pillY = currentY - 28;
+    const pillY = currentY - (isStory ? 35 : 30);
 
-    ctx.fillStyle = "rgba(16, 185, 129, 0.12)";
+    ctx.fillStyle = "rgba(16, 185, 129, 0.14)";
     ctx.beginPath();
-    ctx.roundRect(pillX, pillY, pillW, 38, 19);
+    ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
     ctx.fill();
-    ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(16, 185, 129, 0.5)";
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.fillStyle = "#34d399";
     ctx.textAlign = "center";
-    ctx.fillText(pillText, pillX + pillW / 2, pillY + 25);
+    ctx.fillText(pillText, pillX + pillW / 2, pillY + pillH / 2 + pillFontSize * 0.35);
 
     // 6. Hero Rank Card Centerpiece
-    currentY = isStory ? 340 : 220;
+    currentY = isStory ? 275 : 185;
 
     // Rank Badge Container
-    const heroH = isStory ? 390 : 250;
+    const heroH = isStory ? 420 : 220;
     const heroW = frameW - 88;
     const heroX = margin + 44;
 
     const heroGrad = ctx.createLinearGradient(heroX, currentY, heroX + heroW, currentY + heroH);
-    heroGrad.addColorStop(0, "rgba(255, 255, 255, 0.05)");
-    heroGrad.addColorStop(1, "rgba(16, 185, 129, 0.06)");
+    heroGrad.addColorStop(0, "rgba(255, 255, 255, 0.06)");
+    heroGrad.addColorStop(1, "rgba(16, 185, 129, 0.08)");
     ctx.fillStyle = heroGrad;
     ctx.beginPath();
     ctx.roundRect(heroX, currentY, heroW, heroH, 32);
     ctx.fill();
 
-    ctx.strokeStyle = rank && rank <= 3 ? "rgba(245, 158, 11, 0.5)" : "rgba(16, 185, 129, 0.35)";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = rank && rank <= 3 ? "rgba(245, 158, 11, 0.6)" : "rgba(16, 185, 129, 0.4)";
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
     // Small Top Label inside Hero Card
-    ctx.font = "bold 20px monospace";
+    const statusFontSize = isStory ? 26 : 21;
+    ctx.font = `bold ${statusFontSize}px monospace`;
     ctx.fillStyle = rank && rank <= 3 ? "#fbbf24" : "#34d399";
     ctx.textAlign = "center";
-    const statusText = rank === 1 ? "★ CLASS VALEDICTORIAN ★" : rank && rank <= 3 ? "★ TOP 3 COHORT LEADER ★" : "COHORT LEADERBOARD STANDING";
-    ctx.fillText(statusText, width / 2, currentY + 54);
+    const statusText =
+      rank === 1
+        ? "★ CLASS VALEDICTORIAN ★"
+        : rank && rank <= 3
+        ? "★ TOP 3 COHORT LEADER ★"
+        : "COHORT LEADERBOARD STANDING";
+    ctx.fillText(statusText, width / 2, currentY + (isStory ? 58 : 42));
 
-    // Big Giant Rank Number
-    ctx.font = `900 ${isStory ? "130px" : "96px"} -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    // Big Giant Rank Number with auto-scaling to ensure perfect fit
+    let rankFontSize = isStory ? 165 : 120;
+    ctx.font = `900 ${rankFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    while (ctx.measureText(displayRank).width > heroW - 80 && rankFontSize > 60) {
+      rankFontSize -= 5;
+      ctx.font = `900 ${rankFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    }
+
     if (rank === 1) {
-      const goldGrad = ctx.createLinearGradient(0, currentY + 80, 0, currentY + 220);
+      const goldGrad = ctx.createLinearGradient(0, currentY + 70, 0, currentY + (isStory ? 250 : 160));
       goldGrad.addColorStop(0, "#fde68a");
       goldGrad.addColorStop(0.5, "#f59e0b");
       goldGrad.addColorStop(1, "#d97706");
@@ -233,27 +248,33 @@ export function LeaderboardShareModal({
       ctx.fillStyle = "#10b981";
     }
 
-    ctx.fillText(displayRank, width / 2, currentY + (isStory ? 200 : 155));
+    ctx.fillText(displayRank, width / 2, currentY + (isStory ? 220 : 150));
 
     // Subtitle below rank
-    ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillStyle = "#94a3b8";
-    const subRankText = rank ? `Global Class Rank • ${userStats.scoreAllTime.toLocaleString()} Points Earned` : "Active Participant • Complete Modules to Rank";
-    ctx.fillText(subRankText, width / 2, currentY + (isStory ? 260 : 205));
+    const subRankFontSize = isStory ? 30 : 24;
+    ctx.font = `bold ${subRankFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    ctx.fillStyle = "#cbd5e1";
+    const subRankText = rank
+      ? `Global Class Rank • ${userStats.scoreAllTime.toLocaleString()} Points Earned`
+      : "Active Participant • Complete Modules to Rank";
+    ctx.fillText(subRankText, width / 2, currentY + (isStory ? 295 : 195));
 
     if (isStory) {
       // Progress percent pill
-      const pctText = rank && rank <= 5 ? "Top 5% of all active engineering students" : "Verified In-Browser SQLite WASM Query Mastery";
-      ctx.font = "17px monospace";
+      const pctText =
+        rank && rank <= 5
+          ? "Top 5% of all active engineering students"
+          : "Verified In-Browser SQLite WASM Query Mastery";
+      ctx.font = "bold 22px monospace";
       ctx.fillStyle = "#64748b";
-      ctx.fillText(pctText, width / 2, currentY + 315);
+      ctx.fillText(pctText, width / 2, currentY + 360);
     }
 
     // 7. Student Identity Section
-    currentY += heroH + (isStory ? 60 : 35);
+    currentY += heroH + (isStory ? 55 : 30);
 
     // Avatar Circle
-    const avatarR = isStory ? 54 : 42;
+    const avatarR = isStory ? 60 : 38;
     const avatarX = width / 2;
     const avatarY = currentY + avatarR;
 
@@ -263,48 +284,56 @@ export function LeaderboardShareModal({
     ctx.fillStyle = "#0f172a";
     ctx.fill();
     ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 4;
     ctx.stroke();
 
     // Initial Letter
     const initial = studentName.charAt(0).toUpperCase();
-    ctx.font = `bold ${isStory ? "48px" : "36px"} sans-serif`;
+    ctx.font = `bold ${isStory ? "62px" : "40px"} sans-serif`;
     ctx.fillStyle = "#34d399";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(initial, avatarX, avatarY);
     ctx.restore();
 
-    // Student Name
-    currentY = avatarY + avatarR + (isStory ? 28 : 20);
-    ctx.font = `bold ${isStory ? "42px" : "32px"} -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    // Student Name with auto-scaling to avoid overflow
+    currentY = avatarY + avatarR + (isStory ? 34 : 24);
+    let nameFontSize = isStory ? 52 : 36;
+    ctx.font = `bold ${nameFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    while (ctx.measureText(studentName).width > heroW - 60 && nameFontSize > 24) {
+      nameFontSize -= 2;
+      ctx.font = `bold ${nameFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    }
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
     ctx.fillText(studentName, width / 2, currentY);
 
     // Track Badge Pill
-    currentY += isStory ? 38 : 28;
+    currentY += isStory ? 48 : 36;
     const trackText = `🎓 ${userStats.track}`;
-    ctx.font = "bold 19px monospace";
-    const trackW = ctx.measureText(trackText).width + 36;
+    const trackFontSize = isStory ? 25 : 20;
+    ctx.font = `bold ${trackFontSize}px monospace`;
+    const trackW = ctx.measureText(trackText).width + 48;
+    const trackH = isStory ? 46 : 38;
     const trackX = width / 2 - trackW / 2;
 
-    ctx.fillStyle = "rgba(14, 165, 233, 0.12)";
+    ctx.fillStyle = "rgba(14, 165, 233, 0.14)";
     ctx.beginPath();
-    ctx.roundRect(trackX, currentY - 24, trackW, 36, 18);
+    ctx.roundRect(trackX, currentY - trackH / 2, trackW, trackH, trackH / 2);
     ctx.fill();
-    ctx.strokeStyle = "rgba(14, 165, 233, 0.4)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(14, 165, 233, 0.45)";
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.fillStyle = "#38bdf8";
-    ctx.fillText(trackText, width / 2, currentY);
+    ctx.textAlign = "center";
+    ctx.fillText(trackText, width / 2, currentY + trackFontSize * 0.35);
 
     // 8. 4-Box Bento Stats Grid (Instagram Wrapped style)
-    currentY += isStory ? 75 : 55;
-    const cardGap = 20;
+    currentY += isStory ? 75 : 50;
+    const cardGap = isStory ? 24 : 16;
     const cardW = (heroW - cardGap) / 2;
-    const cardH = isStory ? 165 : 125;
+    const cardH = isStory ? 175 : 145;
     const leftX = heroX;
     const rightX = heroX + cardW + cardGap;
 
@@ -316,7 +345,7 @@ export function LeaderboardShareModal({
         unit: "pts",
         accent: "#10b981",
         bg: "rgba(16, 185, 129, 0.08)",
-        border: "rgba(16, 185, 129, 0.3)",
+        border: "rgba(16, 185, 129, 0.35)",
       },
       {
         icon: "🎓",
@@ -325,7 +354,7 @@ export function LeaderboardShareModal({
         unit: "/ 16",
         accent: "#38bdf8",
         bg: "rgba(14, 165, 233, 0.08)",
-        border: "rgba(14, 165, 233, 0.3)",
+        border: "rgba(14, 165, 233, 0.35)",
       },
       {
         icon: "💻",
@@ -334,7 +363,7 @@ export function LeaderboardShareModal({
         unit: "solved",
         accent: "#a855f7",
         bg: "rgba(168, 85, 247, 0.08)",
-        border: "rgba(168, 85, 247, 0.3)",
+        border: "rgba(168, 85, 247, 0.35)",
       },
       {
         icon: "🔥",
@@ -343,107 +372,91 @@ export function LeaderboardShareModal({
         unit: "days",
         accent: "#f43f5e",
         bg: "rgba(244, 63, 94, 0.08)",
-        border: "rgba(244, 63, 94, 0.3)",
+        border: "rgba(244, 63, 94, 0.35)",
       },
     ];
 
-    // Row 1
-    [statsData[0], statsData[1]].forEach((stat, i) => {
-      const bx = i === 0 ? leftX : rightX;
-      const by = currentY;
-
+    // Helper to draw a Bento box
+    const drawBentoBox = (stat: (typeof statsData)[0], bx: number, by: number) => {
       ctx.fillStyle = stat.bg;
       ctx.beginPath();
       ctx.roundRect(bx, by, cardW, cardH, 22);
       ctx.fill();
       ctx.strokeStyle = stat.border;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.font = "bold 16px monospace";
+      const labelFont = isStory ? "bold 22px monospace" : "bold 19px monospace";
+      ctx.font = labelFont;
       ctx.fillStyle = stat.accent;
       ctx.textAlign = "left";
-      ctx.fillText(`${stat.icon} ${stat.label}`, bx + 26, by + 38);
+      ctx.fillText(`${stat.icon} ${stat.label}`, bx + (isStory ? 28 : 22), by + (isStory ? 44 : 36));
 
-      ctx.font = "bold 44px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      const valFont = isStory
+        ? "bold 60px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        : "bold 48px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.font = valFont;
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(stat.value, bx + 26, by + 94);
+      const valY = by + (isStory ? 120 : 100);
+      ctx.fillText(stat.value, bx + (isStory ? 28 : 22), valY);
 
       const valW = ctx.measureText(stat.value).width;
-      ctx.font = "bold 20px monospace";
+      const unitFont = isStory ? "bold 26px monospace" : "bold 22px monospace";
+      ctx.font = unitFont;
       ctx.fillStyle = "#94a3b8";
-      ctx.fillText(` ${stat.unit}`, bx + 26 + valW, by + 94);
-    });
+      ctx.fillText(` ${stat.unit}`, bx + (isStory ? 28 : 22) + valW, valY);
+    };
 
-    // Row 2 (if story or scaled)
-    if (isStory) {
-      const row2Y = currentY + cardH + cardGap;
-      [statsData[2], statsData[3]].forEach((stat, i) => {
-        const bx = i === 0 ? leftX : rightX;
-        const by = row2Y;
+    // Draw Row 1 (Points and Modules)
+    drawBentoBox(statsData[0], leftX, currentY);
+    drawBentoBox(statsData[1], rightX, currentY);
 
-        ctx.fillStyle = stat.bg;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, cardW, cardH, 22);
-        ctx.fill();
-        ctx.strokeStyle = stat.border;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+    // Draw Row 2 (SQL Problems and Active Streak)
+    const row2Y = currentY + cardH + cardGap;
+    drawBentoBox(statsData[2], leftX, row2Y);
+    drawBentoBox(statsData[3], rightX, row2Y);
 
-        ctx.font = "bold 16px monospace";
-        ctx.fillStyle = stat.accent;
-        ctx.textAlign = "left";
-        ctx.fillText(`${stat.icon} ${stat.label}`, bx + 26, by + 38);
-
-        ctx.font = "bold 44px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(stat.value, bx + 26, by + 94);
-
-        const valW = ctx.measureText(stat.value).width;
-        ctx.font = "bold 20px monospace";
-        ctx.fillStyle = "#94a3b8";
-        ctx.fillText(` ${stat.unit}`, bx + 26 + valW, by + 94);
-      });
-      currentY = row2Y + cardH;
-    } else {
-      currentY += cardH;
-    }
+    currentY = row2Y + cardH;
 
     // 9. Code Snippet Verification Box (Story only)
     if (isStory) {
       currentY += 45;
-      const snippetH = 140;
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+      const snippetH = 175;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
       ctx.beginPath();
-      ctx.roundRect(heroX, currentY, heroW, snippetH, 20);
+      ctx.roundRect(heroX, currentY, heroW, snippetH, 22);
       ctx.fill();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      ctx.font = "15px monospace";
-      ctx.fillStyle = "#64748b";
+      ctx.font = "bold 20px monospace";
+      ctx.fillStyle = "#94a3b8";
       ctx.textAlign = "left";
-      ctx.fillText("-- Westfield Academy Verified Query Signature", heroX + 24, currentY + 36);
+      ctx.fillText("-- Westfield MySQL Academy Verified Query Signature", heroX + 28, currentY + 42);
 
-      ctx.font = "bold 17px monospace";
+      ctx.font = "bold 24px monospace";
       ctx.fillStyle = "#38bdf8";
-      ctx.fillText("SELECT student, rank, points FROM leaderboard WHERE status = 'mastered';", heroX + 24, currentY + 74);
+      ctx.fillText("SELECT rank, points FROM leaderboard WHERE status = 'mastered';", heroX + 28, currentY + 92);
 
-      ctx.font = "15px monospace";
+      ctx.font = "bold 20px monospace";
       ctx.fillStyle = "#10b981";
-      ctx.fillText("✓ Query evaluated in client WASM engine • 100% Verified", heroX + 24, currentY + 110);
+      ctx.fillText("✓ Query evaluated in client WASM engine • 100% Academic Integrity", heroX + 28, currentY + 140);
     }
 
     // 10. Footer CTA & Link Branding
-    const footerY = height - margin - 35;
-    ctx.font = "bold 20px monospace";
+    const footerY = height - margin - (isStory ? 35 : 25);
+    const urlFont = isStory ? "bold 26px monospace" : "bold 22px monospace";
+    ctx.font = urlFont;
     ctx.fillStyle = "#10b981";
     ctx.textAlign = "left";
     ctx.fillText("mysqlacademy.org/leaderboard", margin + 44, footerY);
 
-    ctx.font = "17px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillStyle = "#64748b";
+    const ctaFont = isStory
+      ? "bold 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      : "bold 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.font = ctaFont;
+    ctx.fillStyle = "#94a3b8";
     ctx.textAlign = "right";
     ctx.fillText("Challenge my standing on MySQL Academy", width - margin - 44, footerY);
   }, [format, displayRank, studentName, rank, userStats]);
@@ -613,8 +626,8 @@ export function LeaderboardShareModal({
               className={cn(
                 "rounded-xl shadow-2xl transition-all duration-300 border border-emerald-500/30",
                 format === "story"
-                  ? "w-[240px] sm:w-[280px] aspect-[9/16]"
-                  : "w-[280px] sm:w-[340px] aspect-square"
+                  ? "w-[270px] sm:w-[320px] aspect-[9/16]"
+                  : "w-[320px] sm:w-[420px] aspect-square"
               )}
             />
           </div>
