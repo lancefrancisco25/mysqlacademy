@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Code2,
   CheckCircle2,
@@ -13,6 +13,10 @@ import {
   Check,
   Copy,
   Zap,
+  Database,
+  Table as TableIcon,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +69,182 @@ function compareValuesLoose(
   return true;
 }
 
+interface SchemaTablePreview {
+  name: string;
+  description?: string;
+  columns: { name: string; type: string; pk?: boolean }[];
+  rows: (string | number | null)[][];
+}
+
+const LESSON_SAMPLE_SCHEMAS: Record<string, SchemaTablePreview[]> = {
+  "select-basics": [
+    {
+      name: "students",
+      description: "Undergraduate student enrollment records",
+      columns: [
+        { name: "stu_num", type: "INTEGER", pk: true },
+        { name: "stu_name", type: "VARCHAR(50)" },
+        { name: "course", type: "VARCHAR(10)" },
+        { name: "units", type: "INTEGER" },
+        { name: "contact_no", type: "VARCHAR(20)" },
+      ],
+      rows: [
+        [101, "Ky", "CS", 21, "0915-11-06"],
+        [102, "Airus", "IT", 24, "0922-24-12"],
+        [103, "Alex", "CS", 18, "0916-42-84"],
+        [104, "Ethan", "IT", 21, "0932-61-92"],
+        [105, "Ara", "IS", 18, null],
+        [106, "Jo", "CS", 21, "0917-5501"],
+      ],
+    },
+    {
+      name: "employees",
+      description: "Company personnel payroll register",
+      columns: [
+        { name: "id", type: "INTEGER", pk: true },
+        { name: "first_name", type: "VARCHAR(50)" },
+        { name: "last_name", type: "VARCHAR(50)" },
+        { name: "department", type: "VARCHAR(50)" },
+        { name: "salary", type: "REAL" },
+        { name: "hire_date", type: "TEXT" },
+        { name: "is_active", type: "INTEGER" },
+      ],
+      rows: [
+        [1, "Alice", "Johnson", "Engineering", 95000, "2020-03-15", 1],
+        [2, "Bob", "Smith", "Marketing", 65000, "2019-07-22", 1],
+        [3, "Carol", "Williams", "Engineering", 105000, "2018-01-10", 1],
+        [4, "David", "Brown", "Sales", 55000, "2021-11-01", 1],
+        [5, "Eve", "Davis", "Marketing", 72000, "2020-06-30", 0],
+      ],
+    },
+  ],
+  "where-clauses": [
+    {
+      name: "students",
+      description: "Undergraduate student enrollment records",
+      columns: [
+        { name: "stu_num", type: "INTEGER", pk: true },
+        { name: "stu_name", type: "VARCHAR(50)" },
+        { name: "course", type: "VARCHAR(10)" },
+        { name: "units", type: "INTEGER" },
+        { name: "contact_no", type: "VARCHAR(20)" },
+      ],
+      rows: [
+        [101, "Ky", "CS", 21, "0915-11-06"],
+        [102, "Airus", "IT", 24, "0922-24-12"],
+        [103, "Alex", "CS", 18, "0916-42-84"],
+        [104, "Ethan", "IT", 21, "0932-61-92"],
+        [105, "Ara", "IS", 18, null],
+        [106, "Jo", "CS", 21, "0917-5501"],
+      ],
+    },
+    {
+      name: "orders",
+      description: "Customer sales orders ledger",
+      columns: [
+        { name: "id", type: "INTEGER", pk: true },
+        { name: "customer_name", type: "VARCHAR(100)" },
+        { name: "product", type: "VARCHAR(100)" },
+        { name: "quantity", type: "INTEGER" },
+        { name: "price", type: "REAL" },
+        { name: "order_date", type: "TEXT" },
+        { name: "status", type: "VARCHAR(20)" },
+      ],
+      rows: [
+        [1, "Alice Johnson", "Laptop", 1, 999.99, "2024-01-15", "completed"],
+        [2, "Bob Smith", "Mouse", 3, 29.99, "2024-01-16", "completed"],
+        [3, "Alice Johnson", "Keyboard", 1, 79.99, "2024-01-17", "shipped"],
+        [4, "Carol Williams", "Monitor", 2, 349.99, "2024-02-01", "pending"],
+        [5, "David Brown", "Laptop", 1, 1299.99, "2024-02-05", "completed"],
+      ],
+    },
+  ],
+  "subqueries": [
+    {
+      name: "products",
+      description: "Retail merchandise catalog",
+      columns: [
+        { name: "id", type: "INTEGER", pk: true },
+        { name: "name", type: "VARCHAR(100)" },
+        { name: "category", type: "VARCHAR(50)" },
+        { name: "price", type: "REAL" },
+      ],
+      rows: [
+        [1, "Laptop Pro", "Electronics", 1299.99],
+        [2, "Wireless Mouse", "Accessories", 29.99],
+        [3, "Mechanical Keyboard", "Accessories", 89.99],
+        [4, "4K Monitor", "Electronics", 449.99],
+        [5, "USB-C Hub", "Accessories", 49.99],
+      ],
+    },
+    {
+      name: "order_items",
+      description: "Order line item details",
+      columns: [
+        { name: "id", type: "INTEGER", pk: true },
+        { name: "product_id", type: "INTEGER" },
+        { name: "quantity", type: "INTEGER" },
+        { name: "total", type: "REAL" },
+        { name: "order_date", type: "TEXT" },
+      ],
+      rows: [
+        [1, 1, 2, 2599.98, "2024-01-10"],
+        [2, 2, 10, 299.90, "2024-01-12"],
+        [3, 3, 5, 449.95, "2024-01-15"],
+        [4, 4, 1, 449.99, "2024-02-01"],
+        [5, 1, 1, 1299.99, "2024-02-10"],
+      ],
+    },
+    {
+      name: "movies",
+      description: "Cinema production archive",
+      columns: [
+        { name: "id", type: "INTEGER", pk: true },
+        { name: "title", type: "VARCHAR(100)" },
+        { name: "year", type: "INTEGER" },
+        { name: "length", type: "INTEGER" },
+        { name: "in_color", type: "VARCHAR(10)" },
+        { name: "studio_name", type: "VARCHAR(50)" },
+      ],
+      rows: [
+        [1, "Gone With the Wind", 1939, 238, "TRUE", "MGM"],
+        [2, "Star Trek: The Motion Picture", 1979, 132, "TRUE", "Paramount"],
+        [3, "Star Trek: The Movie", 1978, 125, "TRUE", "Paramount"],
+        [4, "The Godfather", 1972, 175, "TRUE", "Paramount"],
+        [5, "Star Wars", 1977, 121, "TRUE", "Fox"],
+      ],
+    },
+    {
+      name: "class_a",
+      description: "Section A student enrollment",
+      columns: [
+        { name: "stu_num", type: "INTEGER", pk: true },
+        { name: "stu_name", type: "VARCHAR(50)" },
+        { name: "units", type: "INTEGER" },
+      ],
+      rows: [
+        [101, "Ky", 21],
+        [102, "Airus", 24],
+        [103, "Alex", 18],
+      ],
+    },
+    {
+      name: "class_b",
+      description: "Section B student enrollment",
+      columns: [
+        { name: "stu_num", type: "INTEGER", pk: true },
+        { name: "stu_name", type: "VARCHAR(50)" },
+        { name: "units", type: "INTEGER" },
+      ],
+      rows: [
+        [103, "Alex", 18],
+        [104, "Ethan", 21],
+        [105, "Cedric", 15],
+      ],
+    },
+  ],
+};
+
 export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionProps) {
   const executeQuery = useLessonStore((s) => s.executeQuery);
   const resetDB = useLessonStore((s) => s.resetDB);
@@ -73,6 +253,44 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
   const saveDrillProgress = useLessonStore((s) => s.saveDrillProgress);
   const lessonProg = useLessonStore((s) => s.progress[lessonSlug]);
   const isLessonDone = currentLesson ? isLessonCompleted(currentLesson.slug) : false;
+  const tables = useLessonStore((s) => s.tables);
+  const getTableRows = useLessonStore((s) => s.getTableRows);
+
+  const [selectedTableIndex, setSelectedTableIndex] = useState(0);
+  const [isSchemaExpanded, setIsSchemaExpanded] = useState(true);
+
+  useEffect(() => {
+    setSelectedTableIndex(0);
+  }, [lessonSlug]);
+
+  const schemaTables = useMemo(() => {
+    const staticTables = LESSON_SAMPLE_SCHEMAS[lessonSlug];
+    if (staticTables && staticTables.length > 0) {
+      return staticTables;
+    }
+    if (tables && tables.length > 0) {
+      return tables.map((t) => {
+        let rows: (string | number | null)[][] = [];
+        try {
+          const res = getTableRows(t.name);
+          if (res?.values) rows = res.values.slice(0, 5);
+        } catch {}
+        return {
+          name: t.name,
+          description: `Active table with ${t.rowCount} record${t.rowCount === 1 ? "" : "s"}`,
+          columns: t.columns.map((c) => ({
+            name: c.name,
+            type: c.type,
+            pk: Boolean(c.pk),
+          })),
+          rows,
+        };
+      });
+    }
+    return [];
+  }, [lessonSlug, tables, getTableRows]);
+
+  const activeTable = schemaTables[selectedTableIndex] || schemaTables[0];
 
   const storageKey = `mysql-academy-drills-${lessonSlug}`;
   const resetKey = `mysql-academy-drills-reset-${lessonSlug}`;
@@ -405,6 +623,136 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
         </div>
       </div>
 
+      {/* Sample Practice Schema & Reference Tables */}
+      {schemaTables.length > 0 && (
+        <div className="rounded-xl border border-border/80 bg-background/60 p-4 sm:p-5 space-y-3.5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-emerald-500" />
+              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-foreground">
+                Sample Practice Schema
+              </h4>
+              <span className="text-[11px] text-muted-foreground font-mono">
+                ({schemaTables.length} table{schemaTables.length === 1 ? "" : "s"})
+              </span>
+            </div>
+
+            {/* Table Selector Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {schemaTables.map((t, idx) => (
+                <button
+                  key={t.name}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTableIndex(idx);
+                    setIsSchemaExpanded(true);
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all flex items-center gap-1.5 cursor-pointer",
+                    selectedTableIndex === idx
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 font-semibold"
+                      : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
+                  )}
+                >
+                  <TableIcon className="h-3 w-3" />
+                  {t.name}
+                </button>
+              ))}
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsSchemaExpanded(!isSchemaExpanded)}
+                className="text-xs font-mono text-muted-foreground hover:text-foreground gap-1 h-7 px-2"
+                title={isSchemaExpanded ? "Collapse schema view" : "Expand schema view"}
+              >
+                {isSchemaExpanded ? (
+                  <>
+                    <ChevronUp className="h-3 w-3" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3 w-3" />
+                    Show
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Active Table Schema & Data Preview */}
+          {isSchemaExpanded && activeTable && (
+            <div className="space-y-3 animate-in fade-in-50 duration-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-foreground text-sm">
+                    {activeTable.name}
+                  </span>
+                  {activeTable.description && (
+                    <span className="text-muted-foreground text-xs font-sans">
+                      • {activeTable.description}
+                    </span>
+                  )}
+                </div>
+
+                {/* Column Types Summary */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {activeTable.columns.map((c) => (
+                    <span
+                      key={c.name}
+                      className="px-1.5 py-0.5 rounded bg-muted/80 text-[10px] font-mono text-muted-foreground border border-border/50"
+                      title={`${c.name} (${c.type}${c.pk ? " - PRIMARY KEY" : ""})`}
+                    >
+                      <strong className="text-foreground">{c.name}</strong>{" "}
+                      <span className="opacity-75">{c.type}</span>
+                      {c.pk && <span className="text-amber-500 ml-0.5 font-bold">PK</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Data Rows Preview Table */}
+              {activeTable.rows.length > 0 ? (
+                <div className="overflow-x-auto rounded-lg border border-border/70 bg-card shadow-2xs">
+                  <table className="w-full text-left font-mono text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50 text-muted-foreground text-[11px]">
+                        {activeTable.columns.map((col, idx) => (
+                          <th key={idx} className="px-3 py-1.5 font-semibold">
+                            {col.name}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {activeTable.rows.map((row, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-muted/20 transition-colors">
+                          {row.map((val, cIdx) => (
+                            <td key={cIdx} className="px-3 py-1.5 text-foreground/90 whitespace-nowrap text-[11px]">
+                              {val === null ? (
+                                <span className="text-muted-foreground/60 italic">NULL</span>
+                              ) : (
+                                String(val)
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground font-mono p-3 bg-muted/30 rounded border border-border/50 text-center">
+                  No preview records available.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Progress Bar */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
@@ -474,13 +822,10 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
                 </div>
               </div>
 
-              {/* Scenario Context & Instruction */}
+              {/* Scenario Context */}
               <div className="space-y-1 text-xs sm:text-sm font-sans">
                 <p className="text-foreground/90 font-medium leading-relaxed">
                   {drill.scenario}
-                </p>
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  👉 <span className="font-semibold text-foreground">Instruction:</span> {drill.instruction}
                 </p>
               </div>
 
