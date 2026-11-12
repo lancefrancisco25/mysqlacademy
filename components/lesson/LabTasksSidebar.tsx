@@ -44,11 +44,50 @@ export function LabTasksSidebar({
   const progress = useLessonStore((s) => s.progress);
   const toggleTask = useLessonStore((s) => s.toggleTask);
   const verifyPendingTasks = useLessonStore((s) => s.verifyPendingTasks);
+  const saveCheckpointProgress = useLessonStore((s) => s.saveCheckpointProgress);
 
   const lessonProgress = progress[lesson.slug];
   const completedTaskIds = lessonProgress?.completedTaskIds || [];
   const completedCount = lesson.tasks.filter((t) => completedTaskIds.includes(t.id)).length;
   const percent = Math.round((completedCount / Math.max(lesson.tasks.length, 1)) * 100);
+
+  // Checkpoint exam states
+  const checkpointPassedIds = lessonProgress?.checkpointPassedIds || [];
+  const checkpointTotalCount = lesson.checkpointExam?.questions.length || 0;
+  const checkpointPassedCount = lesson.checkpointExam
+    ? lesson.checkpointExam.questions.filter((q) => checkpointPassedIds.includes(q.id)).length
+    : 0;
+  const checkpointPercent =
+    checkpointTotalCount > 0
+      ? Math.round((checkpointPassedCount / checkpointTotalCount) * 100)
+      : 0;
+
+  const [openCheckpointHints, setOpenCheckpointHints] = useState<Record<string, boolean>>({});
+  const [openCheckpointSolutions, setOpenCheckpointSolutions] = useState<Record<string, boolean>>({});
+
+  const toggleCheckpointHint = (id: string) => {
+    setOpenCheckpointHints((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleCheckpointSolution = (id: string) => {
+    setOpenCheckpointSolutions((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleCheckpointQuestion = (qId: string) => {
+    if (!lesson.checkpointExam) return;
+    const isCurrentlyPassed = checkpointPassedIds.includes(qId);
+    const nextPassed = isCurrentlyPassed
+      ? checkpointPassedIds.filter((id) => id !== qId)
+      : [...checkpointPassedIds, qId];
+    const isAllDone = nextPassed.length >= lesson.checkpointExam.questions.length;
+    saveCheckpointProgress(
+      lesson.checkpointExam.id,
+      lesson.slug,
+      nextPassed,
+      lessonProgress?.checkpointCodes || {},
+      isAllDone
+    );
+  };
 
   // Hidden hint states
   const [openHints, setOpenHints] = useState<Record<string, boolean>>({});
@@ -118,13 +157,170 @@ export function LabTasksSidebar({
           </p>
         </div>
 
-        {/* Section 1: Needed Tasks to Try */}
+        {/* Section 1: Final Lesson Checkpoint Mission (Full Instructions) */}
+        {lesson.checkpointExam && (
+          <div className="space-y-3.5 rounded-xl border-2 border-emerald-500/35 bg-emerald-500/[0.03] p-4 shadow-xs">
+            {/* Mission Header */}
+            <div className="space-y-1.5 border-b border-border/60 pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Final Checkpoint Mission
+                </span>
+                <span className="text-xs font-mono font-bold text-foreground">
+                  {checkpointPassedCount}/{checkpointTotalCount} Passed
+                </span>
+              </div>
+
+              <h3 className="text-sm sm:text-base font-bold text-foreground">
+                {lesson.checkpointExam.title}
+              </h3>
+              {lesson.checkpointExam.subtitle && (
+                <p className="text-[11px] font-mono text-muted-foreground">
+                  {lesson.checkpointExam.subtitle}
+                </p>
+              )}
+
+              <Progress value={checkpointPercent} className="h-1.5 bg-muted mt-2" />
+            </div>
+
+            {/* Scenario Context */}
+            <div className="rounded-lg border border-border/80 bg-background/80 p-3 space-y-1 text-xs">
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Scenario Context
+              </div>
+              <p className="text-muted-foreground leading-relaxed font-sans text-[11px]">
+                {lesson.checkpointExam.scenarioContext}
+              </p>
+            </div>
+
+            {/* Checkpoint Questions with Full Instructions */}
+            <div className="space-y-3 pt-1">
+              {lesson.checkpointExam.questions.map((q, idx) => {
+                const isPassed = checkpointPassedIds.includes(q.id);
+                const isHintOpen = !!openCheckpointHints[q.id];
+                const isSolOpen = !!openCheckpointSolutions[q.id];
+
+                return (
+                  <div
+                    key={q.id}
+                    className={cn(
+                      "rounded-xl border p-3.5 space-y-2.5 transition-all",
+                      isPassed
+                        ? "border-emerald-500/40 bg-emerald-500/[0.06]"
+                        : "border-border bg-card"
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleCheckpointQuestion(q.id)}
+                        className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                        title={isPassed ? "Mark pending" : "Mark passed"}
+                      >
+                        {isPassed ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 fill-emerald-500/10" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground/60 hover:text-emerald-500 transition-colors" />
+                        )}
+                      </button>
+
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={cn(
+                              "text-xs font-bold tracking-tight",
+                              isPassed ? "text-muted-foreground line-through" : "text-foreground"
+                            )}
+                          >
+                            {idx + 1}. {q.title}
+                          </span>
+                          {isPassed ? (
+                            <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white font-mono text-[10px] gap-1 shrink-0">
+                              <CheckCircle2 className="h-2.5 w-2.5" />
+                              Passed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground font-mono text-[10px] shrink-0">
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Full Instructions Prompt from Checkpoint */}
+                        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/70 text-xs text-foreground/95 font-sans leading-relaxed">
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1">
+                            Full Instructions
+                          </span>
+                          {q.prompt}
+                        </div>
+
+                        {/* Conceptual Clue (Not giveaway code!) */}
+                        {q.hint && (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => toggleCheckpointHint(q.id)}
+                              className="text-[11px] font-mono text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <Lightbulb className="h-3 w-3" />
+                              <span>{isHintOpen ? "Hide conceptual clue" : "Need a conceptual clue?"}</span>
+                            </button>
+                            {isHintOpen && (
+                              <div className="mt-1.5 p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs font-sans leading-relaxed">
+                                💡 <strong className="font-semibold">Clue:</strong> {q.hint}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Reference Solution SQL (Hidden disclosure) */}
+                        {q.solutionSQL && (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => toggleCheckpointSolution(q.id)}
+                              className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <Sparkles className="h-3 w-3 text-sky-500" />
+                              <span>{isSolOpen ? "Hide Solution SQL" : "Reveal Solution SQL"}</span>
+                            </button>
+                            {isSolOpen && (
+                              <div className="mt-1.5 p-2 rounded-lg border border-zinc-800 bg-[#0c0d11] text-emerald-400 font-mono text-[11px] flex items-center justify-between gap-2 overflow-x-auto">
+                                <code>{q.solutionSQL}</code>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyHint(q.solutionSQL!, q.id)}
+                                  className="shrink-0 p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white"
+                                  title="Copy SQL"
+                                >
+                                  {copiedTaskId === q.id ? (
+                                    <Check className="h-3 w-3 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Section 2: Guided Warmup Tasks */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Terminal className="h-4 w-4 text-sky-500" />
               <h3 className="text-xs font-mono font-bold text-foreground uppercase tracking-wider">
-                Lab Tasks to Try
+                Guided Warmup Tasks
               </h3>
             </div>
             <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
@@ -153,7 +349,7 @@ export function LabTasksSidebar({
                   <div className="flex items-start gap-2.5">
                     <button
                       onClick={() => toggleTask(lesson.slug, task.id)}
-                      className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95"
+                      className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95 cursor-pointer"
                       title={isDone ? "Mark pending" : "Mark completed"}
                     >
                       {isDone ? (
@@ -184,30 +380,30 @@ export function LabTasksSidebar({
                         {task.description}
                       </p>
 
-                      {/* Hint Button: Hidden until clicked */}
+                      {/* Solution Reference SQL */}
                       {task.hint && !isDone && (
                         <div className="pt-1.5">
                           <button
                             type="button"
                             onClick={() => toggleHint(task.id)}
-                            className="text-[11px] font-mono text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 transition-colors"
+                            className="text-[11px] font-mono text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1 transition-colors cursor-pointer"
                           >
-                            <Lightbulb className="h-3 w-3" />
-                            <span>{isHintOpen ? "Hide hint" : "Need a hint?"}</span>
+                            <Lightbulb className="h-3 w-3 text-amber-500" />
+                            <span>{isHintOpen ? "Hide Solution SQL" : "Reveal Solution SQL"}</span>
                           </button>
 
                           {isHintOpen && (
-                            <div className="mt-1.5 p-2 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2">
+                            <div className="mt-1.5 p-2 rounded-lg border border-zinc-800 bg-[#0c0d11] text-emerald-400 font-mono text-[11px] flex items-center justify-between gap-2">
                               <span className="break-all">{task.hint}</span>
                               <button
                                 onClick={() => handleCopyHint(task.hint!, task.id)}
-                                className="shrink-0 p-1 hover:bg-amber-500/20 rounded transition-colors"
+                                className="shrink-0 p-1 hover:bg-zinc-800 rounded transition-colors"
                                 title="Copy hint SQL"
                               >
                                 {copiedTaskId === task.id ? (
-                                  <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                  <Check className="h-3 w-3 text-emerald-400" />
                                 ) : (
-                                  <Copy className="h-3 w-3 text-amber-700 dark:text-amber-300" />
+                                  <Copy className="h-3 w-3 text-zinc-400" />
                                 )}
                               </button>
                             </div>

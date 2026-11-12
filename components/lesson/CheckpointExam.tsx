@@ -335,21 +335,35 @@ export function CheckpointExam({
           )}
         </div>
 
-        {/* Score indicator */}
-        <div className="flex items-center gap-2 bg-muted/60 px-3.5 py-2 rounded-xl border border-border/80 self-start sm:self-center font-mono">
-          <span className="text-xs text-muted-foreground">Score:</span>
-          <span
-            className={cn(
-              "text-sm font-bold",
-              isAllPassed
-                ? "text-emerald-500"
-                : passedCount > 0
-                ? "text-amber-500"
-                : "text-foreground"
-            )}
-          >
-            {passedCount}/{exam.questions.length} Passed
-          </span>
+        {/* Score & Interactive Lab Controls */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+          {onOpenLab && (
+            <Button
+              type="button"
+              onClick={() => onOpenLab()}
+              className="font-mono text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm h-9 px-3.5"
+              title="Open full interactive terminal and schema sandbox to practice this checkpoint"
+            >
+              <Terminal className="h-4 w-4" />
+              <span>Try in Interactive Lab</span>
+            </Button>
+          )}
+
+          <div className="flex items-center gap-2 bg-muted/60 px-3.5 py-2 rounded-xl border border-border/80 font-mono">
+            <span className="text-xs text-muted-foreground">Score:</span>
+            <span
+              className={cn(
+                "text-sm font-bold",
+                isAllPassed
+                  ? "text-emerald-500"
+                  : passedCount > 0
+                  ? "text-amber-500"
+                  : "text-foreground"
+              )}
+            >
+              {passedCount}/{exam.questions.length} Passed
+            </span>
+          </div>
         </div>
       </div>
 
@@ -363,6 +377,29 @@ export function CheckpointExam({
           {exam.scenarioContext}
         </p>
       </div>
+
+      {/* Top Callout: Try in Interactive Lab */}
+      {onOpenLab && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-emerald-500/35 bg-emerald-500/10 text-xs shadow-2xs">
+          <div className="space-y-1">
+            <div className="font-bold text-foreground flex items-center gap-2 text-sm">
+              <Terminal className="h-4 w-4 text-emerald-500" />
+              <span>Practice in the Interactive Sandbox</span>
+            </div>
+            <p className="text-muted-foreground text-xs leading-relaxed font-sans">
+              Test and debug these exact certification queries in the full MySQL CLI sandbox with live schema tables and instant execution feedback.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => onOpenLab()}
+            className="shrink-0 font-mono text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs h-9 px-4"
+          >
+            <Terminal className="h-3.5 w-3.5" />
+            Try in Interactive Lab
+          </Button>
+        </div>
+      )}
 
       {/* Questions List */}
       <div className="space-y-6">
