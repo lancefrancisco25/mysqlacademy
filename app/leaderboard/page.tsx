@@ -13,13 +13,15 @@ import {
   Medal,
   ArrowRight,
   RotateCcw,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { AuthBarrier } from "@/components/auth/AuthBarrier";
-import { MOCK_STUDENTS, type LeaderboardEntry } from "@/lib/leaderboard-data";
+import { type LeaderboardEntry } from "@/lib/leaderboard-data";
 import { useLessonStore } from "@/lib/store";
 import {
   fetchCloudLeaderboard,
@@ -94,36 +96,34 @@ export default function LeaderboardPage() {
     }
   }, []);
 
+  const [fetchNotice, setFetchNotice] = useState<string | null>(null);
+
   // Fetch real students from Supabase database
+  const loadCloudLeaderboard = async () => {
+    if (!isSupabaseConfigured()) {
+      setFetchNotice("Supabase credentials not configured in environment variables.");
+      return;
+    }
+    try {
+      setIsLoadingCloud(true);
+      setFetchNotice(null);
+      const records = await fetchCloudLeaderboard();
+      setCloudRecords(records);
+    } catch (err: any) {
+      console.warn("[leaderboard] Cloud fetch notice:", err);
+      setFetchNotice("Unable to reach cloud leaderboard. Check network and database policies.");
+    } finally {
+      setIsLoadingCloud(false);
+    }
+  };
+
   useEffect(() => {
     if (!mounted || !user) return;
-
-    let isSubscribed = true;
-    async function loadCloudLeaderboard() {
-      if (!isSupabaseConfigured()) return;
-      try {
-        setIsLoadingCloud(true);
-        const records = await fetchCloudLeaderboard();
-        if (isSubscribed) {
-          setCloudRecords(records);
-        }
-      } catch (err) {
-        console.warn("[leaderboard] Cloud fetch notice:", err);
-      } finally {
-        if (isSubscribed) {
-          setIsLoadingCloud(false);
-        }
-      }
-    }
-
     loadCloudLeaderboard();
-    return () => {
-      isSubscribed = false;
-    };
   }, [mounted, user]);
 
   // Handle opt-in toggle with Supabase persistence
-  const handleToggleOptIn = (checked: boolean) => {
+  const handleToggleOptIn = async (checked: boolean) => {
     setIsOptedIn(checked);
     if (typeof window !== "undefined") {
       try {
@@ -133,15 +133,9 @@ export default function LeaderboardPage() {
 
     // Persist opt-in preference to real Supabase database if logged in
     if (user && isSupabaseConfigured()) {
-      const updatedProgress = {
-        ...progress,
-        _meta: {
-          optIn: checked,
-          name: user.name,
-          avatarUrl: user.avatarUrl,
-        },
-      };
-      saveCloudProgress(user.id, updatedProgress as any, user.email);
+      await saveCloudProgress(user.id, progress as any, user.email, user.name, checked);
+      // Refresh database records to keep client and cloud in parity
+      loadCloudLeaderboard();
     }
 
     const message = checked
@@ -174,47 +168,58 @@ export default function LeaderboardPage() {
     };
   }, [progress, getOverallStats]);
 
-  // Build combined cohort entries from real Supabase records + cohort benchmarks
+  // Build cohort entries strictly from real Supabase records + current student if opted in (NO MOCK DATA)
   const cohortEntries: LeaderboardEntry[] = useMemo(() => {
     const map = new Map<string, LeaderboardEntry>();
 
-    // 1. Add baseline cohort members
-    MOCK_STUDENTS.forEach((student) => {
-      map.set(student.name.toLowerCase(), { ...student });
-    });
-
-    // 2. Parse real records from Supabase user_progress table
+    // 1. Parse real records from Supabase user_progress table
     cloudRecords.forEach((record) => {
       const rawMeta = record.progress?._meta;
-      // Skip if explicitly opted out in database
-      if (rawMeta?.optIn === false) return;
+      const isRecordOptedIn = record.opt_in !== false && rawMeta?.optIn !== false;
+      if (!isRecordOptedIn) return;
+
+      const isCurrent = Boolean(
+        user && (record.user_id === user.id || (record.email && record.email.toLowerCase() === user.email?.toLowerCase()))
+      );
+
+      // If this record belongs to the current user, respect current user's local isOptedIn toggle
+      if (isCurrent && !isOptedIn) return;
 
       const studentName =
+        record.name ||
         rawMeta?.name ||
         (record.email ? record.email.split("@")[0] : null) ||
         "Student";
 
       const stats = parseProgressToStats(record.progress);
-      const isCurrent = Boolean(user && (record.user_id === user.id || record.email === user.email));
+      const scoreAllTime = isCurrent ? Math.max(stats.scoreAllTime, userStats.scoreAllTime) : stats.scoreAllTime;
+      const scoreThisWeek = isCurrent ? Math.max(stats.scoreThisWeek, userStats.scoreThisWeek) : stats.scoreThisWeek;
 
-      map.set(studentName.toLowerCase(), {
+      const entryKey = isCurrent ? "current-user" : record.user_id.toLowerCase();
+      map.set(entryKey, {
         id: record.user_id,
-        name: studentName,
+        name: isCurrent ? `${user?.name || studentName} (You)` : studentName,
         avatarSeed: record.user_id,
-        track: stats.track,
-        completedLessons: stats.completedLessons,
-        completedTasks: stats.completedTasks,
-        streakDays: stats.streakDays,
-        scoreAllTime: stats.scoreAllTime,
-        scoreThisWeek: stats.scoreThisWeek,
+        track: isCurrent
+          ? userStats.completedLessons >= 4
+            ? "Joins & Subqueries"
+            : userStats.completedLessons >= 2
+            ? "CRUD Operations"
+            : "Relational Foundations"
+          : stats.track,
+        completedLessons: isCurrent ? Math.max(stats.completedLessons, userStats.completedLessons) : stats.completedLessons,
+        completedTasks: isCurrent ? Math.max(stats.completedTasks, userStats.completedTasks) : stats.completedTasks,
+        streakDays: isCurrent ? Math.max(stats.streakDays, userStats.streakDays) : stats.streakDays,
+        scoreAllTime,
+        scoreThisWeek,
         isCurrentUser: isCurrent,
       });
     });
 
-    // 3. Insert or update the current user if opted in
-    if (isOptedIn && user) {
-      const studentName = user.name || "You (Student)";
-      map.set(studentName.toLowerCase(), {
+    // 2. Insert or update the current user if opted in and not already added from cloudRecords
+    if (isOptedIn && user && !map.has("current-user")) {
+      const studentName = `${user.name || "Student"} (You)`;
+      map.set("current-user", {
         id: user.id || "current-user",
         name: studentName,
         avatarSeed: user.id || "StudentUser",
@@ -442,26 +447,56 @@ export default function LeaderboardPage() {
               </button>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <label htmlFor="leaderboard-search" className="sr-only">
-                Search students by name or track
-              </label>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                id="leaderboard-search"
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search students or tracks..."
-                className={cn(
-                  "w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground",
-                  "placeholder:text-muted-foreground/70",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:border-emerald-500"
-                )}
-              />
+            {/* Search Input & Refresh Button */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <label htmlFor="leaderboard-search" className="sr-only">
+                  Search students by name or track
+                </label>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  id="leaderboard-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search students or tracks..."
+                  className={cn(
+                    "w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground",
+                    "placeholder:text-muted-foreground/70",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:border-emerald-500"
+                  )}
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadCloudLeaderboard}
+                disabled={isLoadingCloud}
+                className="text-xs h-8 px-2.5 gap-1.5 shrink-0 border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                title="Fetch latest student rankings from Supabase database"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isLoadingCloud && "animate-spin text-emerald-500")} />
+                <span className="hidden md:inline">{isLoadingCloud ? "Fetching..." : "Refresh"}</span>
+              </Button>
             </div>
           </div>
+
+          {/* Database Notice Banner if fetch notice occurred */}
+          {fetchNotice && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span className="flex-1">{fetchNotice}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadCloudLeaderboard}
+                className="h-6 px-2 text-[11px] text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* ── Leaderboard Table Section ──────────────────────────────── */}
@@ -471,10 +506,10 @@ export default function LeaderboardPage() {
           aria-labelledby={period === "all-time" ? "tab-all-time" : "tab-this-week"}
           className="rounded-xl border border-border bg-card/60 overflow-hidden shadow-sm"
         >
-          {!mounted ? (
+          {!mounted || isLoadingCloud ? (
             /* Loading Skeleton State */
             <div className="p-6 space-y-3" aria-busy="true" aria-label="Loading leaderboard">
-              {[...Array(6)].map((_, i) => (
+              {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
                   className="h-12 w-full bg-muted/40 rounded-lg animate-pulse"
@@ -485,23 +520,38 @@ export default function LeaderboardPage() {
             /* Empty State */
             <div className="p-12 text-center space-y-3">
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                <Search className="h-5 w-5" />
+                {searchQuery ? <Search className="h-5 w-5" /> : <Trophy className="h-5 w-5" />}
               </div>
               <h3 className="text-sm font-bold text-foreground">
-                No students match your search
+                {searchQuery ? "No students match your search" : "No cohort standings available yet"}
               </h3>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                No students found matching &quot;{searchQuery}&quot;. Clear the search input to view the full cohort standings.
+                {searchQuery
+                  ? `No students found matching "${searchQuery}". Clear the search input to view the full cohort standings.`
+                  : isOptedIn
+                  ? "You are currently the only active participant opted into this cohort leaderboard. Keep practicing and your standing will lead the board!"
+                  : "No students have opted into the public standings yet. Turn on \"Show me on leaderboard\" above to publish your score and take the #1 rank!"}
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSearchQuery("")}
-                className="text-xs h-8 gap-1.5 mt-2"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>Reset Search</span>
-              </Button>
+              {searchQuery ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchQuery("")}
+                  className="text-xs h-8 gap-1.5 mt-2"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Reset Search</span>
+                </Button>
+              ) : !isOptedIn ? (
+                <Button
+                  size="sm"
+                  onClick={() => handleToggleOptIn(true)}
+                  className="text-xs h-8 gap-1.5 mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>Publish My Score to Leaderboard</span>
+                </Button>
+              ) : null}
             </div>
           ) : (
             /* Data Table */

@@ -48,19 +48,37 @@ export function validateTask(
     }
   }
 
-  // 2. Verify returned columns if specified
+  // 2. Verify returned columns if specified (lenient checking)
   if (rule.expectedColumns && rule.expectedColumns.length > 0) {
     if (!result || !result.columns || result.columns.length === 0) {
       return { passed: false, reason: "Query returned no columns." };
     }
-    const lowerCols = result.columns.map((c) => c.toLowerCase());
-    const hasAll = rule.expectedColumns.every((c) =>
-      lowerCols.includes(c.toLowerCase())
-    );
-    if (!hasAll) {
+
+    // Normalize column names: strip table qualifiers, quotes, backticks, whitespace, and lowercase
+    const normalizeCol = (c: string) =>
+      c.split(".").pop()!.replace(/[`'"]/g, "").trim().toLowerCase();
+
+    const actualCols = result.columns.map(normalizeCol);
+    const expectedNormalized = rule.expectedColumns.map(normalizeCol);
+
+    // 1. Direct or normalized name match
+    const hasAllDirect = expectedNormalized.every((exp) => actualCols.includes(exp));
+
+    // 2. Check if student query text references the column (e.g. aliased: "SELECT col AS alias")
+    const queryLower = (query || "").toLowerCase();
+    const queryMentionsAll = expectedNormalized.every((exp) => {
+      const colRegex = new RegExp(`\\b${exp}\\b`, "i");
+      return colRegex.test(queryLower);
+    });
+
+    // 3. Tolerant match: If direct match passes, or query explicitly references all columns,
+    // or column count matches and there is an expectedResult that satisfies value verification
+    const countSatisfied = result.columns.length >= rule.expectedColumns.length;
+
+    if (!hasAllDirect && !queryMentionsAll && (!rule.expectedResult || !countSatisfied)) {
       return {
         passed: false,
-        reason: `Output must project columns: ${rule.expectedColumns.join(", ")}.`,
+        reason: `Output should include data for: ${rule.expectedColumns.join(", ")}.`,
       };
     }
   }

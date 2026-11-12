@@ -133,11 +133,44 @@ export async function fetchCloudProgress(
 }
 
 /**
+ * Deterministic RFC4122 v4 UUID from an email or identifier string.
+ * Ensures compatibility whether user_progress.user_id is typed as UUID or TEXT.
+ */
+export function emailToUUID(identifier: string): string {
+  const clean = identifier.trim().toLowerCase();
+  let hash1 = 0x811c9dc5;
+  let hash2 = 0x597f;
+  let hash3 = 0x1a2b;
+  let hash4 = 0x3c4d;
+
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean.charCodeAt(i);
+    hash1 = (hash1 ^ ch) * 16777619;
+    hash2 = (hash2 ^ (ch << 3)) * 31;
+    hash3 = (hash3 ^ (ch << 5)) * 17;
+    hash4 = (hash4 ^ (ch << 7)) * 13;
+  }
+
+  const p1 = (Math.abs(hash1) >>> 0).toString(16).padStart(8, "0");
+  const p2 = (Math.abs(hash2) % 65536).toString(16).padStart(4, "0");
+  const p3 = "4" + (Math.abs(hash3) % 4096).toString(16).padStart(3, "0");
+  const p4 = "8" + (Math.abs(hash4) % 4096).toString(16).padStart(3, "0");
+  const p5 = (
+    (Math.abs(hash1 ^ hash4) >>> 0).toString(16).padStart(8, "0") +
+    (Math.abs(hash2 ^ hash3) % 65536).toString(16).padStart(4, "0")
+  );
+
+  return `${p1}-${p2}-${p3}-${p4}-${p5}`;
+}
+
+/**
  * Fetch all students' progress for the cohort leaderboard from Supabase
  */
 export interface CloudProgressRecord {
   user_id: string;
   email: string | null;
+  name?: string | null;
+  opt_in?: boolean | null;
   progress: Record<string, any>;
   updated_at: string;
 }
@@ -149,9 +182,9 @@ export async function fetchCloudLeaderboard(): Promise<CloudProgressRecord[]> {
   try {
     const { data, error } = await client
       .from("user_progress")
-      .select("user_id, email, progress, updated_at")
+      .select("*")
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(100);
 
     if (error) {
       console.warn("[supabase] fetchCloudLeaderboard error:", error.message);
@@ -164,30 +197,64 @@ export async function fetchCloudLeaderboard(): Promise<CloudProgressRecord[]> {
     return [];
   }
 }
+
 export async function saveCloudProgress(
   userId: string,
   progress: Record<string, LessonProgress>,
-  email?: string
+  email?: string,
+  name?: string,
+  optIn: boolean = true
 ): Promise<boolean> {
   const client = getSupabaseClient();
   if (!client || !userId) return false;
 
   try {
-    const { error } = await client.from("user_progress").upsert(
+    const studentName = name || (email ? email.split("@")[0] : "Student");
+    const payloadWithMeta = {
+      ...progress,
+      _meta: {
+        optIn,
+        name: studentName,
+        email: email || null,
+        updatedAt: new Date().toISOString(),
+      },
+    };
+
+    // First attempt: upsert including optional name & opt_in columns
+    const { error: fullError } = await client.from("user_progress").upsert(
       {
         user_id: userId,
         email: email || null,
-        progress,
+        name: studentName,
+        opt_in: optIn,
+        progress: payloadWithMeta,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }
     );
 
-    if (error) {
-      console.warn("[supabase] saveCloudProgress error:", error.message);
-      return false;
+    if (!fullError) return true;
+
+    // If column name/opt_in does not exist in schema cache (PGRST204), fallback to core columns
+    if (fullError.code === "PGRST204" || fullError.message?.includes("column")) {
+      const { error: fallbackError } = await client.from("user_progress").upsert(
+        {
+          user_id: userId,
+          email: email || null,
+          progress: payloadWithMeta,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+      if (fallbackError) {
+        console.warn("[supabase] saveCloudProgress fallback error:", fallbackError.message);
+        return false;
+      }
+      return true;
     }
-    return true;
+
+    console.warn("[supabase] saveCloudProgress error:", fullError.message);
+    return false;
   } catch (err) {
     console.warn("[supabase] saveCloudProgress exception:", err);
     return false;

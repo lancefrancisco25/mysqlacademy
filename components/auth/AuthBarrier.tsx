@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLessonStore } from "@/lib/store";
-import { isSupabaseConfigured, signInWithGoogle } from "@/lib/supabase";
+import { isSupabaseConfigured, signInWithGoogle, emailToUUID } from "@/lib/supabase";
 import { toast } from "sonner";
 
 interface AuthBarrierProps {
@@ -76,7 +76,7 @@ export function AuthBarrier({
 
     const studentName = name.trim() || email.split("@")[0] || "Student";
     const studentUser = {
-      id: "student-" + btoa(email.toLowerCase().trim()).substring(0, 16),
+      id: emailToUUID(email.trim().toLowerCase()),
       name: studentName,
       email: email.trim().toLowerCase(),
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(studentName)}`,

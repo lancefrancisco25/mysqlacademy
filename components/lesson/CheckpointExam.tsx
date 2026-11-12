@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Check,
   Copy,
+  Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -532,20 +533,36 @@ export function CheckpointExam({
                   )}
                 </div>
 
-                <Button
-                  onClick={() => handleTestQuestion(q)}
-                  disabled={!state.code.trim()}
-                  size="sm"
-                  className={cn(
-                    "w-full sm:w-auto font-mono text-xs font-bold gap-1.5",
-                    state.passed
-                      ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  {onOpenLab && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onOpenLab()}
+                      className="font-mono text-xs gap-1.5 border-border hover:bg-muted text-muted-foreground hover:text-foreground"
+                      title="Open interactive terminal and database sandbox to practice this question"
+                    >
+                      <Terminal className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>Try in Interactive Lab</span>
+                    </Button>
                   )}
-                >
-                  <Play className="h-3 w-3 fill-current" />
-                  {state.passed ? "Re-Test Solution" : "Test Solution"}
-                </Button>
+
+                  <Button
+                    onClick={() => handleTestQuestion(q)}
+                    disabled={!state.code.trim()}
+                    size="sm"
+                    className={cn(
+                      "font-mono text-xs font-bold gap-1.5",
+                      state.passed
+                        ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    )}
+                  >
+                    <Play className="h-3 w-3 fill-current" />
+                    {state.passed ? "Re-Test Solution" : "Test Solution"}
+                  </Button>
+                </div>
               </div>
             </div>
           );
