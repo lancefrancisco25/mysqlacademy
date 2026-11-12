@@ -284,31 +284,65 @@ function pushCloudProgressHelper(
 }
 
 /**
- * Calculate total points earned by a student from completed modules, tasks, and speed drills.
- * Each mastered lesson awards 150 points.
- * Each completed task awards 35 points.
- * Each passed speed drill awards 20 points.
+ * Calculate total points earned by a student across all curriculum activities.
+ * • Module Mastery Bonus (All activities complete): 150 pts
+ * • Interactive Lab Task (Verified in WASM engine): 35 pts each
+ * • Final Checkpoint Exam Question: 35 pts each
+ * • Scenario Blueprint Challenge: 30 pts each
+ * • Situational Syntax Speed Drill: 20 pts each
+ * • Quick Intuition Check: 15 pts each
  */
 export function calculateProgressScore(progress: Record<string, any>): number {
   let completedTasks = 0;
   let completedLessons = 0;
   let completedDrills = 0;
+  let completedCheckpoints = 0;
+  let completedScenarios = 0;
+  let completedIntuitions = 0;
 
-  for (const lesson of LESSONS) {
-    const p = progress?.[lesson.slug];
-    if (p && Array.isArray(p.completedTaskIds)) {
+  for (const [key, val] of Object.entries(progress || {})) {
+    if (key.startsWith("_")) continue;
+    const p = val as any;
+    if (!p) continue;
+
+    if (Array.isArray(p.completedTaskIds)) {
       completedTasks += p.completedTaskIds.length;
     }
-    if (p && Array.isArray(p.completedDrillIds)) {
+    if (Array.isArray(p.completedDrillIds)) {
       completedDrills += p.completedDrillIds.length;
     }
-    const stats = getLessonActivityStats(lesson, p);
-    if (stats.isCompleted) {
+    if (Array.isArray(p.checkpointPassedIds)) {
+      completedCheckpoints += p.checkpointPassedIds.length;
+    }
+    if (p.scenarioCompleted) {
+      completedScenarios += 1;
+    }
+    if (p.dragBlockCompleted) {
+      completedScenarios += 1;
+    }
+    if (p.intuitionCompleted) {
+      completedIntuitions += 1;
+    }
+
+    const lesson = getLessonBySlug(key);
+    if (lesson) {
+      const stats = getLessonActivityStats(lesson, p);
+      if (stats.isCompleted) {
+        completedLessons += 1;
+      }
+    } else if (p.isCompleted) {
       completedLessons += 1;
     }
   }
 
-  return completedLessons * 150 + completedTasks * 35 + completedDrills * 20;
+  return (
+    completedLessons * 150 +
+    completedTasks * 35 +
+    completedCheckpoints * 35 +
+    completedScenarios * 30 +
+    completedDrills * 20 +
+    completedIntuitions * 15
+  );
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────

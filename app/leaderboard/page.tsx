@@ -24,6 +24,8 @@ import { Switch } from "@/components/ui/switch";
 import { AuthBarrier } from "@/components/auth/AuthBarrier";
 import { type LeaderboardEntry } from "@/lib/leaderboard-data";
 import { useLessonStore } from "@/lib/store";
+import { getLessonBySlug } from "@/lib/lessons";
+import { getLessonActivityStats } from "@/lib/lessons/activities";
 import {
   fetchCloudLeaderboard,
   saveCloudProgress,
@@ -34,27 +36,74 @@ import { cn } from "@/lib/utils";
 
 const STORAGE_OPT_IN_KEY = "mysql-academy-leaderboard-opt-in";
 
+/**
+ * Parses raw JSON progress into comprehensive academic statistics and point totals.
+ * • Module Mastery Bonus (All required module activities 100% complete): 150 pts
+ * • Interactive Terminal Lab Tasks: 35 pts each
+ * • Final Lesson Checkpoint Exam Questions: 35 pts each
+ * • Hands-On Scenario Blueprint Challenges: 30 pts each
+ * • Situational Syntax Speed Drills: 20 pts each
+ * • Quick Intuition Checks: 15 pts each
+ */
 function parseProgressToStats(rawProgress: Record<string, any>) {
   let completedTasks = 0;
   let completedLessons = 0;
   let completedDrills = 0;
+  let completedCheckpoints = 0;
+  let completedScenarios = 0;
+  let completedIntuitions = 0;
 
   for (const [key, val] of Object.entries(rawProgress || {})) {
     if (key.startsWith("_")) continue;
     const p = val as any;
-    if (p && Array.isArray(p.completedTaskIds)) {
+    if (!p) continue;
+
+    if (Array.isArray(p.completedTaskIds)) {
       completedTasks += p.completedTaskIds.length;
     }
-    if (p && Array.isArray(p.completedDrillIds)) {
+    if (Array.isArray(p.completedDrillIds)) {
       completedDrills += p.completedDrillIds.length;
     }
-    if (p && (p.isCompleted || (Array.isArray(p.completedTaskIds) && p.completedTaskIds.length >= 2))) {
+    if (Array.isArray(p.checkpointPassedIds)) {
+      completedCheckpoints += p.checkpointPassedIds.length;
+    }
+    if (p.scenarioCompleted) {
+      completedScenarios += 1;
+    }
+    if (p.dragBlockCompleted) {
+      completedScenarios += 1;
+    }
+    if (p.intuitionCompleted) {
+      completedIntuitions += 1;
+    }
+
+    const lesson = getLessonBySlug(key);
+    if (lesson) {
+      const stats = getLessonActivityStats(lesson, p);
+      if (stats.isCompleted) {
+        completedLessons += 1;
+      }
+    } else if (p.isCompleted) {
       completedLessons += 1;
     }
   }
 
-  const scoreAllTime = completedLessons * 150 + completedTasks * 35 + completedDrills * 20;
-  const scoreThisWeek = Math.max(Math.round(scoreAllTime * 0.45), completedTasks * 20);
+  const scoreAllTime =
+    completedLessons * 150 +
+    completedTasks * 35 +
+    completedCheckpoints * 35 +
+    completedScenarios * 30 +
+    completedDrills * 20 +
+    completedIntuitions * 15;
+
+  const totalActivitiesDone =
+    completedTasks +
+    completedCheckpoints +
+    completedScenarios +
+    completedDrills +
+    completedIntuitions;
+
+  const scoreThisWeek = Math.max(Math.round(scoreAllTime * 0.45), totalActivitiesDone * 20);
   const streakDays = completedLessons > 0 ? Math.min(completedLessons * 2 + 1, 14) : 0;
 
   let track = "Relational Foundations";
@@ -64,7 +113,13 @@ function parseProgressToStats(rawProgress: Record<string, any>) {
 
   return {
     completedLessons,
-    completedTasks,
+    completedTasks: totalActivitiesDone,
+    rawCompletedTasks: completedTasks,
+    completedDrills,
+    completedCheckpoints,
+    completedScenarios,
+    completedIntuitions,
+    totalActivitiesDone,
     scoreAllTime,
     scoreThisWeek,
     streakDays,
@@ -242,29 +297,10 @@ export default function LeaderboardPage() {
     setAnnouncement(message);
   };
 
-  // Compute current user's actual progress stats
+  // Compute current user's actual progress stats using updated pointing calculation
   const userStats = useMemo(() => {
-    const stats = getOverallStats();
-    let totalDrills = 0;
-    Object.values(progress).forEach((p) => {
-      if (p.completedDrillIds) {
-        totalDrills += p.completedDrillIds.length;
-      }
-    });
-
-    const calculatedScore =
-      stats.completedLessons * 150 + stats.totalTasksDone * 35 + totalDrills * 20;
-
-    const weeklyScore = Math.max(Math.round(calculatedScore * 0.45), stats.totalTasksDone * 20);
-
-    return {
-      completedLessons: stats.completedLessons,
-      completedTasks: stats.totalTasksDone,
-      scoreAllTime: calculatedScore,
-      scoreThisWeek: weeklyScore,
-      streakDays: stats.completedLessons > 0 ? Math.min(stats.completedLessons * 2 + 1, 14) : 0,
-    };
-  }, [progress, getOverallStats]);
+    return parseProgressToStats(progress);
+  }, [progress]);
 
   // Build cohort entries strictly from real Supabase records + current student if opted in (NO MOCK DATA)
   const cohortEntries: LeaderboardEntry[] = useMemo(() => {
@@ -567,6 +603,69 @@ export default function LeaderboardPage() {
           </div>
         </section>
 
+        {/* ── Scoring Breakdown Panel ─────────────────────────────────── */}
+        <section aria-label="Point System Breakdown" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-center space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-bold block">
+              Module Mastery
+            </span>
+            <div className="text-lg font-mono font-extrabold text-foreground">
+              150 <span className="text-xs font-normal text-muted-foreground">pts</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">All required activities 100%</p>
+          </div>
+
+          <div className="p-3 rounded-xl border border-sky-500/30 bg-sky-500/5 text-center space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-sky-600 dark:text-sky-400 font-bold block">
+              Terminal Lab
+            </span>
+            <div className="text-lg font-mono font-extrabold text-foreground">
+              35 <span className="text-xs font-normal text-muted-foreground">pts</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">Per verified SQL query</p>
+          </div>
+
+          <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold block">
+              Checkpoint Exam
+            </span>
+            <div className="text-lg font-mono font-extrabold text-foreground">
+              35 <span className="text-xs font-normal text-muted-foreground">pts</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">Per passed exam question</p>
+          </div>
+
+          <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 text-center space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-purple-600 dark:text-purple-400 font-bold block">
+              Scenario Blueprint
+            </span>
+            <div className="text-lg font-mono font-extrabold text-foreground">
+              30 <span className="text-xs font-normal text-muted-foreground">pts</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">Per schema challenge</p>
+          </div>
+
+          <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-center space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 font-bold block">
+              Speed Drills
+            </span>
+            <div className="text-lg font-mono font-extrabold text-foreground">
+              20 <span className="text-xs font-normal text-muted-foreground">pts</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">Per rapid syntax drill</p>
+          </div>
+
+          <div className="p-3 rounded-xl border border-teal-500/30 bg-teal-500/5 text-center space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold block">
+              Intuition Check
+            </span>
+            <div className="text-lg font-mono font-extrabold text-foreground">
+              15 <span className="text-xs font-normal text-muted-foreground">pts</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">Per mental model check</p>
+          </div>
+        </section>
+
         {/* ── Filters & Controls Bar ─────────────────────────────────── */}
         <section aria-label="Leaderboard Filters" className="space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -737,7 +836,7 @@ export default function LeaderboardPage() {
                       Current Track
                     </th>
                     <th scope="col" className="px-4 py-3 text-center hidden sm:table-cell">
-                      Tasks
+                      Activities
                     </th>
                     <th scope="col" className="px-4 py-3 text-right">
                       Score
@@ -865,7 +964,7 @@ export default function LeaderboardPage() {
               {filteredEntries.length === 1 ? "" : "s"}
             </span>
             <span className="font-mono text-[11px]">
-              Points earned via verified lab tasks, syntax speed drills, and module checkpoints.
+              Points earned via verified lab tasks, checkpoint exams, scenario blueprints, speed drills, intuition checks, and module mastery.
             </span>
           </div>
         </section>
