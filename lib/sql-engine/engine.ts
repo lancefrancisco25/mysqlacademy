@@ -32,7 +32,7 @@ async function getWasmBinary(): Promise<ArrayBuffer | undefined> {
   return undefined;
 }
 
-async function getSqlJsInstance(): Promise<SqlJsStatic> {
+export async function getSqlJsInstance(): Promise<SqlJsStatic> {
   if (SQL) return SQL;
   if (!sqlPromise) {
     sqlPromise = (async () => {

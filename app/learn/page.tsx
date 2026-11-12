@@ -150,6 +150,49 @@ export default function LearnDashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Quick Tools & Features Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              href="/leaderboard"
+              className="p-4 rounded-xl border border-border bg-card/40 hover:bg-card hover:border-emerald-500/40 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-500 group-hover:scale-105 transition-transform">
+                  <Trophy className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground">
+                    Student Leaderboard
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Cohort standings, day streaks, and mastery rankings.
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+
+            <Link
+              href="/sql-sandbox"
+              className="p-4 rounded-xl border border-border bg-card/40 hover:bg-card hover:border-emerald-500/40 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-purple-500/10 text-purple-400 group-hover:scale-105 transition-transform">
+                  <Wrench className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground">
+                    In-Browser MySQL Sandbox
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Test queries and create tables with local persistence.
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          </div>
         </div>
 
         {/* ── Categorized Curriculum Tracks ───────────────────────────── */}
