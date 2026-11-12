@@ -50,8 +50,6 @@ export function ConceptPrimer({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasAnswered, setHasAnswered] = useState(false);
-  const [hasCelebrated, setHasCelebrated] = useState(false);
-
   const progress = useLessonStore((s) => s.progress);
   const saveIntuitionProgress = useLessonStore((s) => s.saveIntuitionProgress);
 
@@ -59,14 +57,18 @@ export function ConceptPrimer({
     return getLessonActivityStats(lesson, progress[lesson.slug]);
   }, [lesson, progress]);
 
-  // Trigger celebration confetti when all module activities are completed
+  // Only celebrate dynamically when user actively completes the last required activity
+  const [hasCelebrated, setHasCelebrated] = useState(() => activityStats.isCompleted);
+
   useEffect(() => {
-    if (activityStats.isCompleted && !hasCelebrated) {
+    if (!activityStats.isCompleted) {
+      setHasCelebrated(false);
+    } else if (!hasCelebrated) {
       setHasCelebrated(true);
       try {
         confetti({
-          particleCount: 120,
-          spread: 70,
+          particleCount: 130,
+          spread: 75,
           origin: { y: 0.6 },
         });
       } catch {}
@@ -388,7 +390,7 @@ export function ConceptPrimer({
 
         {/* ── 8. Interactive Hands-on Exercises (Drag & Drop / Scenarios) ── */}
         {lesson.exercises && lesson.exercises.length > 0 && (
-          <div id="scenario-blueprint" className="space-y-8 scroll-mt-20">
+          <div className="space-y-8">
             <div className="flex items-center gap-2 border-b border-border/60 pb-2">
               <Sparkles className="h-5 w-5 text-sky-500" />
               <h2 className="text-xl font-bold tracking-tight text-foreground">
@@ -397,14 +399,18 @@ export function ConceptPrimer({
             </div>
 
             {lesson.exercises.map((exercise, idx) => (
-              <div key={exercise.id || idx}>
+              <React.Fragment key={exercise.id || idx}>
                 {exercise.type === "drag-block" && (
-                  <DragBlockExercise exercise={exercise} />
+                  <div id="interactive-builder" className="scroll-mt-20">
+                    <DragBlockExercise exercise={exercise} />
+                  </div>
                 )}
                 {exercise.type === "scenario" && (
-                  <ScenarioExercise exercise={exercise} />
+                  <div id="scenario-blueprint" className="scroll-mt-20">
+                    <ScenarioExercise exercise={exercise} />
+                  </div>
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </div>
         )}

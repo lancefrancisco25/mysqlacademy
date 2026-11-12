@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Blocks,
   PenLine,
@@ -21,6 +22,8 @@ import {
   Layers,
   Award,
   Terminal,
+  Code2,
+  Building2,
 } from "lucide-react";
 import { TRACKS, LESSONS, getLessonsForTrack, getTrackForLesson } from "@/lib/lessons";
 import { getLessonActivityStats } from "@/lib/lessons/activities";
@@ -40,6 +43,8 @@ const ICON_MAP: Record<string, any> = {
 const SUBCAT_ICON_MAP: Record<string, any> = {
   BookOpen,
   Sparkles,
+  Code2,
+  Building2,
   Layers,
   Zap,
   Award,
@@ -62,6 +67,7 @@ export function CurriculumSidebar({
   const progress = useLessonStore((s) => s.progress);
   const isLessonCompleted = useLessonStore((s) => s.isLessonCompleted);
   const currentTrack = getTrackForLesson(currentSlug);
+  const router = useRouter();
 
   // Keep track of which tracks are expanded (auto-expand current track by default)
   const [expandedTracks, setExpandedTracks] = useState<Record<string, boolean>>(() => {
@@ -311,7 +317,7 @@ export function CurriculumSidebar({
                                       if (isActive && onNavigateSection) {
                                         onNavigateSection(subcat.hash);
                                       } else {
-                                        window.location.href = `/learn/${l.slug}#${subcat.hash}`;
+                                        router.push(`/learn/${l.slug}#${subcat.hash}`);
                                       }
                                       if (window.innerWidth < 768) {
                                         onClose();

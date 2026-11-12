@@ -1,9 +1,9 @@
 import type { Lesson, LessonProgress } from "@/types";
 
 export interface LessonSubcategoryItem {
-  id: "concept" | "intuition" | "scenario" | "drills" | "checkpoint" | "lab";
+  id: "concept" | "intuition" | "builder" | "scenario" | "drills" | "checkpoint" | "lab";
   label: string;
-  iconName: "BookOpen" | "Sparkles" | "Layers" | "Zap" | "Award" | "Terminal";
+  iconName: "BookOpen" | "Sparkles" | "Code2" | "Building2" | "Zap" | "Award" | "Terminal";
   hash: string;
   done: boolean;
   total: number;
@@ -85,33 +85,45 @@ export function getLessonActivityStats(
     });
   }
 
-  // 3. Scenario Blueprint Exercise(s)
-  if (lesson.exercises && lesson.exercises.length > 0) {
-    const totalExercises = lesson.exercises.length;
-    totalActivities += totalExercises;
-
-    let completedExCount = 0;
-    lesson.exercises.forEach((ex) => {
-      if (ex.type === "scenario" && p?.scenarioCompleted) {
-        completedExCount += 1;
-      } else if (ex.type === "drag-block" && p?.dragBlockCompleted) {
-        completedExCount += 1;
-      }
-    });
-
-    completedActivities += completedExCount;
+  // 3. Interactive Builder (Drag-and-Drop clause assembler)
+  const dragExercises = lesson.exercises?.filter((ex) => ex.type === "drag-block") || [];
+  if (dragExercises.length > 0) {
+    totalActivities += dragExercises.length;
+    const isDone = Boolean(p?.dragBlockCompleted);
+    if (isDone) {
+      completedActivities += dragExercises.length;
+    }
     subcategories.push({
-      id: "scenario",
-      label: "Scenario Blueprint",
-      iconName: "Layers",
-      hash: "scenario-blueprint",
-      done: completedExCount >= totalExercises,
-      total: totalExercises,
-      completed: completedExCount,
+      id: "builder",
+      label: "Interactive Builder",
+      iconName: "Code2",
+      hash: "interactive-builder",
+      done: isDone,
+      total: dragExercises.length,
+      completed: isDone ? dragExercises.length : 0,
     });
   }
 
-  // 4. Situational Syntax Drills
+  // 4. Scenario Blueprint (Real-world schema challenge)
+  const scenarioExercises = lesson.exercises?.filter((ex) => ex.type === "scenario") || [];
+  if (scenarioExercises.length > 0) {
+    totalActivities += scenarioExercises.length;
+    const isDone = Boolean(p?.scenarioCompleted);
+    if (isDone) {
+      completedActivities += scenarioExercises.length;
+    }
+    subcategories.push({
+      id: "scenario",
+      label: "Scenario Blueprint",
+      iconName: "Building2",
+      hash: "scenario-blueprint",
+      done: isDone,
+      total: scenarioExercises.length,
+      completed: isDone ? scenarioExercises.length : 0,
+    });
+  }
+
+  // 5. Situational Syntax Drills
   if (lesson.syntaxDrills && lesson.syntaxDrills.length > 0) {
     const totalDrills = lesson.syntaxDrills.length;
     totalActivities += totalDrills;
@@ -133,7 +145,7 @@ export function getLessonActivityStats(
     });
   }
 
-  // 5. Final Lesson Checkpoint Exam
+  // 6. Final Lesson Checkpoint Exam
   if (lesson.checkpointExam && lesson.checkpointExam.questions.length > 0) {
     const totalQuestions = lesson.checkpointExam.questions.length;
     totalActivities += totalQuestions;
@@ -155,7 +167,7 @@ export function getLessonActivityStats(
     });
   }
 
-  // 6. Interactive Lab Tasks
+  // 7. Interactive Lab Tasks
   if (lesson.tasks && lesson.tasks.length > 0) {
     const totalTasks = lesson.tasks.length;
     totalActivities += totalTasks;
@@ -177,10 +189,9 @@ export function getLessonActivityStats(
     });
   }
 
-  // If there are no activities in this lesson, default to completed
+  // A lesson is strictly completed ONLY when all activities in the module are 100% completed
   const isCompleted =
-    Boolean(p?.isCompleted) ||
-    (totalActivities > 0 && completedActivities >= totalActivities);
+    totalActivities > 0 ? completedActivities >= totalActivities : true;
 
   const percent =
     totalActivities > 0

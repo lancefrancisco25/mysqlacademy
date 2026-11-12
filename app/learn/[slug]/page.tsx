@@ -104,7 +104,7 @@ export default function LessonWorkspacePage() {
     }
   }, []);
 
-  // Handle URL hash navigation (e.g. #interactive-lab or #syntax-speed-drills)
+  // Handle URL hash navigation (e.g. #interactive-builder, #scenario-blueprint, #syntax-speed-drills)
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.hash) {
       const h = window.location.hash.replace("#", "");
@@ -112,12 +112,15 @@ export default function LessonWorkspacePage() {
         setViewMode("lab");
       } else {
         setViewMode("concept");
-        setTimeout(() => {
+        const attemptScroll = (retries = 4) => {
           const el = document.getElementById(h);
           if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else if (retries > 0) {
+            setTimeout(() => attemptScroll(retries - 1), 120);
           }
-        }, 150);
+        };
+        setTimeout(() => attemptScroll(), 80);
       }
     }
   }, [slug]);
@@ -127,12 +130,15 @@ export default function LessonWorkspacePage() {
       setViewMode("lab");
     } else {
       setViewMode("concept");
-      setTimeout(() => {
+      const attemptScroll = (retries = 4) => {
         const el = document.getElementById(sectionHash);
         if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (retries > 0) {
+          setTimeout(() => attemptScroll(retries - 1), 100);
         }
-      }, 50);
+      };
+      setTimeout(() => attemptScroll(), 40);
     }
   };
 
