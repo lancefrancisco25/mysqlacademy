@@ -26,6 +26,7 @@ import {
   isSupabaseConfigured,
   mapSupabaseUser,
   fetchCloudProgress,
+  fetchCloudStudentProfile,
   saveCloudProgress,
   emailToUUID,
 } from "./supabase";
@@ -485,28 +486,47 @@ export const useLessonStore = create<LessonState>((set, get) => ({
     set({ cloudSyncStatus: "syncing" });
 
     try {
-      const cloudData = await fetchCloudProgress(user.id);
+      const cloudProfile = await fetchCloudStudentProfile(user.id);
+      const cloudData = cloudProfile?.progress || {};
       const localData = get().progress;
 
       // Merge local and cloud progress safely
-      const merged = mergeProgress(localData, cloudData || {});
+      const merged = mergeProgress(localData, cloudData);
 
       // Persist merged progress locally
       saveProgress(merged);
       syncProgressToLocalStorage(merged);
       set({ progress: merged });
 
-      // Determine opt-in preference
-      let optIn = false;
+      // Determine opt-in preference:
+      // 1. If explicitly set in localStorage on this device, respect it
+      // 2. Otherwise restore from cloud profile in Supabase
+      // 3. If neither is set, default to true
+      let optIn = true;
       if (typeof window !== "undefined") {
         try {
-          const opt = localStorage.getItem("mysql-academy-leaderboard-opt-in");
-          optIn = opt === "true";
+          const stored = localStorage.getItem("mysql-academy-leaderboard-opt-in");
+          if (stored === "true") {
+            optIn = true;
+          } else if (stored === "false") {
+            optIn = false;
+          } else if (cloudProfile?.optIn !== undefined && cloudProfile?.optIn !== null) {
+            optIn = cloudProfile.optIn;
+            localStorage.setItem("mysql-academy-leaderboard-opt-in", String(optIn));
+          }
         } catch {}
+      } else if (cloudProfile?.optIn !== undefined && cloudProfile?.optIn !== null) {
+        optIn = cloudProfile.optIn;
+      }
+
+      // If cloud profile has a customized name, ensure user.name is updated
+      if (cloudProfile?.name && cloudProfile.name !== "Student" && (!user.name || user.name === "Student")) {
+        const updated = { ...user, name: cloudProfile.name };
+        set({ user: updated });
       }
 
       // Save back to cloud and automatically update database with student's Full Name
-      const ok = await saveCloudProgress(user.id, merged, user.email, user.name, optIn);
+      const ok = await saveCloudProgress(user.id, merged, user.email, get().user?.name || user.name, optIn);
       if (ok) {
         set({ cloudSyncStatus: "synced", lastCloudSync: Date.now() });
       } else {

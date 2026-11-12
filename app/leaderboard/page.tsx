@@ -100,8 +100,12 @@ export default function LeaderboardPage() {
     if (typeof window !== "undefined") {
       try {
         const savedOptIn = localStorage.getItem(STORAGE_OPT_IN_KEY);
-        // Default is strictly opted out (false) unless explicitly saved as true
-        setIsOptedIn(savedOptIn === "true");
+        // Default to true (opted in) unless explicitly saved as false
+        if (savedOptIn === "false") {
+          setIsOptedIn(false);
+        } else {
+          setIsOptedIn(true);
+        }
       } catch {}
     }
   }, []);
@@ -119,6 +123,37 @@ export default function LeaderboardPage() {
       setFetchNotice(null);
       const records = await fetchCloudLeaderboard();
       setCloudRecords(records);
+
+      // Rehydrate opt-in directly from the database if not explicitly set locally
+      if (user) {
+        const myRecord = records.find(
+          (r) =>
+            r.user_id === user.id ||
+            (r.email && user.email && r.email.toLowerCase() === user.email.toLowerCase())
+        );
+        if (myRecord) {
+          const cloudOptIn =
+            myRecord.opt_in !== undefined && myRecord.opt_in !== null
+              ? Boolean(myRecord.opt_in)
+              : myRecord.progress?._meta?.optIn !== undefined
+              ? Boolean(myRecord.progress._meta.optIn)
+              : true;
+
+          const localVal =
+            typeof window !== "undefined"
+              ? localStorage.getItem(STORAGE_OPT_IN_KEY)
+              : null;
+
+          if (localVal === null) {
+            setIsOptedIn(cloudOptIn);
+            if (typeof window !== "undefined") {
+              try {
+                localStorage.setItem(STORAGE_OPT_IN_KEY, String(cloudOptIn));
+              } catch {}
+            }
+          }
+        }
+      }
     } catch (err: any) {
       console.warn("[leaderboard] Cloud fetch notice:", err);
       setFetchNotice("Unable to reach cloud leaderboard. Check network and database policies.");
@@ -130,11 +165,12 @@ export default function LeaderboardPage() {
   useEffect(() => {
     if (!mounted || !user) return;
     loadCloudLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, user]);
 
   // Automatic DB edit for existing logged-in users (backfill Full Name, opt-in, & stats)
   useEffect(() => {
-    if (!mounted || !user || !isSupabaseConfigured()) return;
+    if (!mounted || !user || !isSupabaseConfigured() || isLoadingCloud) return;
     let isCancelled = false;
 
     async function autoSyncExistingUser() {
@@ -147,10 +183,6 @@ export default function LeaderboardPage() {
           user.name,
           isOptedIn
         );
-        if (!isCancelled) {
-          const records = await fetchCloudLeaderboard();
-          if (!isCancelled) setCloudRecords(records);
-        }
       } catch (e) {
         console.warn("[leaderboard] Auto-sync notice:", e);
       }
@@ -160,7 +192,7 @@ export default function LeaderboardPage() {
     return () => {
       isCancelled = true;
     };
-  }, [mounted, user, isOptedIn, progress]);
+  }, [mounted, user, isOptedIn, progress, isLoadingCloud]);
 
   // Handle saving Full Name directly to local storage and Supabase
   const handleSaveName = async (e?: React.FormEvent) => {

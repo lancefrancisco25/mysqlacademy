@@ -118,33 +118,60 @@ export async function getCurrentStudent(): Promise<StudentUser | null> {
   }
 }
 
+export interface CloudStudentProfile {
+  progress: Record<string, LessonProgress>;
+  name?: string | null;
+  optIn?: boolean | null;
+}
+
 /**
  * Fetch progress from Supabase user_progress table
  */
 export async function fetchCloudProgress(
   userId: string
 ): Promise<Record<string, LessonProgress> | null> {
+  const profile = await fetchCloudStudentProfile(userId);
+  return profile?.progress || null;
+}
+
+/**
+ * Fetch full student profile (progress, display name, and opt-in preference) from Supabase
+ */
+export async function fetchCloudStudentProfile(
+  userId: string
+): Promise<CloudStudentProfile | null> {
   const client = getSupabaseClient();
   if (!client || !userId) return null;
 
   try {
     const { data, error } = await client
       .from("user_progress")
-      .select("progress")
+      .select("progress, name, opt_in")
       .eq("user_id", userId)
       .maybeSingle();
 
     if (error) {
-      console.warn("[supabase] fetchCloudProgress error:", error.message);
+      console.warn("[supabase] fetchCloudStudentProfile error:", error.message);
       return null;
     }
 
-    if (data?.progress && typeof data.progress === "object") {
-      return data.progress as Record<string, LessonProgress>;
-    }
-    return {};
+    if (!data) return null;
+
+    const rawMeta = data.progress?._meta;
+    const optIn =
+      data.opt_in !== undefined && data.opt_in !== null
+        ? Boolean(data.opt_in)
+        : rawMeta?.optIn !== undefined && rawMeta?.optIn !== null
+        ? Boolean(rawMeta.optIn)
+        : true;
+
+    return {
+      progress: (data.progress as Record<string, LessonProgress>) || {},
+      name: data.name || rawMeta?.name || null,
+      optIn,
+    };
   } catch (err) {
-    console.warn("[supabase] fetchCloudProgress exception:", err);
+    console.warn("[supabase] fetchCloudStudentProfile exception:", err);
     return null;
   }
 }

@@ -38,15 +38,20 @@ alter table public.user_progress add column if not exists opt_in boolean not nul
 -- 4. Backfill existing rows: populate name strictly from Google Auth profile metadata in auth.users
 update public.user_progress up
 set name = coalesce(
-  nullif(trim(up.name), ''),
-  au.raw_user_meta_data->>'full_name',
-  au.raw_user_meta_data->>'name',
+  nullif(trim(au.raw_user_meta_data->>'full_name'), ''),
+  nullif(trim(au.raw_user_meta_data->>'name'), ''),
   nullif(trim(concat_ws(' ', au.raw_user_meta_data->>'given_name', au.raw_user_meta_data->>'family_name')), ''),
-  up.progress->'_meta'->>'name'
+  nullif(trim(up.progress->'_meta'->>'name'), 'Student'),
+  up.name
 )
 from auth.users au
 where up.user_id = au.id::text
   and (up.name is null or trim(up.name) = '' or up.name = 'Student');
+
+-- 5. Ensure all existing student records are opted into the leaderboard by default
+update public.user_progress
+set opt_in = true
+where opt_in is false;
 
 -- 4. Turn on Row Level Security (RLS)
 alter table public.user_progress enable row level security;
