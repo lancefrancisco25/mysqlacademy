@@ -160,33 +160,123 @@ function validateTableNotExists(rule: ValidationRule): ValidationResult {
   };
 }
 
+function isInspectionQueryOrRule(rule: ValidationRule, query?: string): boolean {
+  const q = (query || "").trim();
+  if (q && /^\s*(?:DESCRIBE|DESC|SHOW\s+COLUMNS\s+(?:FROM|IN))\b/i.test(q)) {
+    return true;
+  }
+  if (rule.queryPattern) {
+    const patternStr =
+      typeof rule.queryPattern === "string"
+        ? rule.queryPattern
+        : (rule.queryPattern?.source || "");
+    if (/(?:DESCRIBE|DESC|SHOW\s+COLUMNS)/i.test(patternStr)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function validateColumnExists(rule: ValidationRule, query?: string, isTablePresent?: boolean): ValidationResult {
-  if (!rule.table || !rule.column)
+  const targetTable = (rule.table || "").trim();
+  const targetColumn = (rule.column || "").trim();
+  const isInspection = isInspectionQueryOrRule(rule, query);
+
+  if (isInspection) {
+    // When inspecting (e.g. DESCRIBE tablename), the syntax column name is not strict
+    // (describe statement syntax targets the table, not individual columns).
+    // The checking of describe tablename must not be strict about specific columns.
+    const effectiveTable = targetTable || (() => {
+      if (query) {
+        const m = query.trim().match(/^\s*(?:DESCRIBE|DESC|SHOW\s+COLUMNS\s+(?:FROM|IN))\s+["`]?(\w+)["`]?\s*;?\s*$/i);
+        if (m) return m[1];
+      }
+      return "";
+    })();
+
+    if (!effectiveTable) {
+      return { passed: false, reason: "No table specified to inspect." };
+    }
+
+    // 1. If student executed a DESCRIBE / DESC / SHOW COLUMNS statement targeting the table
+    if (query) {
+      const descRegex = new RegExp(
+        `^\\s*(?:DESCRIBE|DESC|SHOW\\s+COLUMNS\\s+(?:FROM|IN))\\s+["\`]?${effectiveTable}["\`]?\\s*;?\\s*$`,
+        "i"
+      );
+      if (descRegex.test(query.trim())) {
+        return { passed: true };
+      }
+      if (rule.queryPattern) {
+        const pattern =
+          typeof rule.queryPattern === "string"
+            ? new RegExp(rule.queryPattern, "i")
+            : rule.queryPattern;
+        if (pattern.test(query.trim())) {
+          return { passed: true };
+        }
+      }
+    }
+
+    // 2. If table is present in database catalog, describe inspection check passes
+    const tables = getTableNames();
+    const matchedTable = tables.find((t) => t.toLowerCase() === effectiveTable.toLowerCase());
+    if (matchedTable) {
+      return { passed: true };
+    }
+
+    // 3. Fallback when table is not present in database: be not strict, pass if query describes table
+    if (query) {
+      const looseDesc = new RegExp(`^(?:DESCRIBE|DESC)\\s+["\`]?${effectiveTable}["\`]?`, "i");
+      if (looseDesc.test(query.trim())) {
+        return { passed: true };
+      }
+    }
+
+    return {
+      passed: false,
+      reason: `Table '${effectiveTable}' does not exist to inspect. Run CREATE TABLE first.`,
+    };
+  }
+
+  // Non-inspection mode (e.g. ALTER TABLE ADD COLUMN verification):
+  if (!targetTable || !targetColumn) {
     return { passed: false, reason: "No table/column specified" };
+  }
+
   const tables = getTableNames();
-  const matchedTable = tables.find((t) => t.toLowerCase() === rule.table!.toLowerCase()) || rule.table;
+  const matchedTable = tables.find((t) => t.toLowerCase() === targetTable.toLowerCase()) || targetTable;
   const info = getTableInfo(matchedTable);
   if (info) {
     const colNames = info.values.map((r) => String(r[1]).toLowerCase());
-    if (colNames.includes(rule.column.toLowerCase())) {
+    if (colNames.includes(targetColumn.toLowerCase())) {
       return { passed: true };
+    }
+    // Tolerant check: check if the student's query added/defined the column
+    if (query) {
+      const colPattern = new RegExp(`\\b${targetColumn}\\b`, "i");
+      if (colPattern.test(query)) {
+        return { passed: true };
+      }
     }
     return {
       passed: false,
-      reason: `Column '${rule.column}' not found in table '${rule.table}'.`,
+      reason: `Column '${targetColumn}' not found in table '${targetTable}'.`,
     };
   }
+
   // When table is not present in database: be not strict, check if query defines or describes column
   if (query) {
-    const colPattern = new RegExp(`\\b${rule.column}\\b`, "i");
-    const descPattern = new RegExp(`^(?:DESCRIBE|DESC)\\s+["\`]?${rule.table}["\`]?`, "i");
+    const colPattern = new RegExp(`\\b${targetColumn}\\b`, "i");
+    const descPattern = new RegExp(`^(?:DESCRIBE|DESC)\\s+["\`]?${targetTable}["\`]?`, "i");
     if (colPattern.test(query) || descPattern.test(query)) {
       return { passed: true };
     }
   }
+
   return {
     passed: false,
-    reason: `Column '${rule.column}' not found in table '${rule.table}'.`,
+    reason: `Column '${targetColumn}' not found in table '${targetTable}'.`,
   };
 }
 

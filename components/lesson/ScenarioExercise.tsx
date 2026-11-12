@@ -233,15 +233,21 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
             const rule = req.validationRule;
             if (rule.type === "table_exists" && rule.table) {
               passed = tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase());
-            } else if (rule.type === "column_exists" && rule.table && rule.column) {
-              const info = getTableInfo(rule.table);
-              passed = Boolean(
-                info &&
-                  info.values &&
-                  info.values.some(
-                    (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
-                  )
-              );
+            } else if (rule.type === "column_exists" && rule.table) {
+              const isDescribe = /^\s*(?:DESCRIBE|DESC|SHOW\s+COLUMNS\s+(?:FROM|IN))\b/i.test(sqlCode);
+              if (isDescribe) {
+                const tableRegex = new RegExp(`\\b${rule.table}\\b`, "i");
+                passed = tableRegex.test(sqlCode) || tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase());
+              } else if (rule.column) {
+                const info = getTableInfo(rule.table);
+                passed = Boolean(
+                  info &&
+                    info.values &&
+                    info.values.some(
+                      (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
+                    )
+                );
+              }
             } else if (rule.type === "query_result" && rule.query) {
               try {
                 const res = executeQuery(rule.query, { skipTaskValidation: true });
@@ -288,18 +294,24 @@ export function ScenarioExercise({ exercise }: ScenarioExerciseProps) {
               passed =
                 tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase()) ||
                 new RegExp(`CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?["\`]?${rule.table}["\`]?`, "i").test(sqlCode);
-            } else if (rule.type === "column_exists" && rule.table && rule.column) {
-              const info = getTableInfo(rule.table);
-              const existsInEngine = Boolean(
-                info &&
-                  info.values &&
-                  info.values.some(
-                    (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
-                  )
-              );
-              passed =
-                existsInEngine ||
-                new RegExp(`\\b${rule.column}\\b`, "i").test(sqlCode);
+            } else if (rule.type === "column_exists" && rule.table) {
+              const isDescribe = /^\s*(?:DESCRIBE|DESC|SHOW\s+COLUMNS\s+(?:FROM|IN))\b/i.test(sqlCode);
+              if (isDescribe) {
+                const tableRegex = new RegExp(`\\b${rule.table}\\b`, "i");
+                passed = tableRegex.test(sqlCode) || tables.some((t) => t.toLowerCase() === rule.table!.toLowerCase());
+              } else if (rule.column) {
+                const info = getTableInfo(rule.table);
+                const existsInEngine = Boolean(
+                  info &&
+                    info.values &&
+                    info.values.some(
+                      (row) => String(row[1]).toLowerCase() === rule.column!.toLowerCase()
+                    )
+                );
+                passed =
+                  existsInEngine ||
+                  new RegExp(`\\b${rule.column}\\b`, "i").test(sqlCode);
+              }
             } else if (rule.type === "query_result" && rule.query) {
               try {
                 const res = executeQuery(rule.query, { skipTaskValidation: true });
