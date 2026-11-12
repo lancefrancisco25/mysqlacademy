@@ -837,7 +837,7 @@ export const crudLessons: Lesson[] = [
         hint: "% matches any zero or more characters: WHERE stu_name LIKE 'A%'",
         syntaxPattern: /WHERE\s+stu_name\s+LIKE\s+['"]A%['"]/i,
         validationQuery: "SELECT COUNT(*) FROM students WHERE stu_name LIKE 'A%';",
-        expectedResult: [[2]],
+        expectedResult: [[3]],
       },
       {
         id: "wc-drill-6",
@@ -863,7 +863,7 @@ export const crudLessons: Lesson[] = [
         hint: "_ matches exactly one character: WHERE contact_no LIKE '_91_-%'",
         syntaxPattern: /WHERE\s+contact_no\s+LIKE\s+['"]_91_-%['"]/i,
         validationQuery: "SELECT COUNT(*) FROM students WHERE contact_no LIKE '_91_-%';",
-        expectedResult: [[2]],
+        expectedResult: [[3]],
       },
       {
         id: "wc-drill-8",

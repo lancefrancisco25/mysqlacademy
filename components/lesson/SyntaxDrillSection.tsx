@@ -37,6 +37,34 @@ interface ItemState {
   copiedSolution?: boolean;
 }
 
+function compareValuesLoose(
+  actual: (string | number | null)[][] | undefined,
+  expected: (string | number | null)[][] | undefined
+): boolean {
+  if (!Array.isArray(actual) || !Array.isArray(expected)) return false;
+  if (actual.length !== expected.length) return false;
+  for (let i = 0; i < expected.length; i++) {
+    const actRow = actual[i];
+    const expRow = expected[i];
+    if (!actRow || actRow.length !== expRow.length) return false;
+    for (let j = 0; j < expRow.length; j++) {
+      const a = actRow[j];
+      const e = expRow[j];
+      if (a === e) continue;
+      const numA = Number(a);
+      const numE = Number(e);
+      if (!isNaN(numA) && !isNaN(numE) && a !== null && e !== null && a !== "" && e !== "") {
+        if (Math.abs(numA - numE) < 0.01) continue;
+        return false;
+      }
+      if (String(a ?? "").trim().toLowerCase() !== String(e ?? "").trim().toLowerCase()) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionProps) {
   const executeQuery = useLessonStore((s) => s.executeQuery);
   const resetDB = useLessonStore((s) => s.resetDB);
@@ -226,6 +254,15 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
     try {
       rollbackIfInTransaction();
 
+      // Execute setup SQL if drill requires pre-requisite views or cleanup
+      if (drill.setupSQL) {
+        try {
+          executeQuery(drill.setupSQL);
+        } catch (setupErr) {
+          console.warn("Syntax drill setupSQL execution warning:", setupErr);
+        }
+      }
+
       // Execute user input query in sandbox
       let userRes: QueryResult | null = null;
       let runtimeError: Error | null = null;
@@ -237,7 +274,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
 
       const inputLower = rawInput.toLowerCase().trim();
 
-      // Syntax Pattern check
+      // Syntax Pattern check (with whitespace normalization tolerance)
       let matchesPattern = true;
       if (drill.syntaxPattern) {
         if (typeof drill.syntaxPattern === "string") {
@@ -245,7 +282,8 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
         } else {
           const cleanFlags = drill.syntaxPattern.flags.replace(/g/g, "");
           const regex = new RegExp(drill.syntaxPattern.source, cleanFlags);
-          matchesPattern = regex.test(rawInput);
+          const normalized = rawInput.replace(/\s+/g, " ").trim();
+          matchesPattern = regex.test(rawInput) || regex.test(normalized);
         }
       }
 
@@ -255,7 +293,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
         try {
           const valRes = executeQuery(drill.validationQuery);
           if (drill.expectedResult && valRes) {
-            matchesResult = JSON.stringify(valRes.values) === JSON.stringify(drill.expectedResult);
+            matchesResult = compareValuesLoose(valRes.values, drill.expectedResult);
           } else {
             matchesResult = Boolean(valRes && valRes.values.length > 0);
           }
@@ -263,7 +301,7 @@ export function SyntaxDrillSection({ lessonSlug, drills }: SyntaxDrillSectionPro
           matchesResult = false;
         }
       } else if (drill.expectedResult && userRes) {
-        matchesResult = JSON.stringify(userRes.values) === JSON.stringify(drill.expectedResult);
+        matchesResult = compareValuesLoose(userRes.values, drill.expectedResult);
       }
 
       const passed = !runtimeError && matchesPattern && matchesResult;

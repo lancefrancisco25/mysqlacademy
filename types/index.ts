@@ -136,6 +136,7 @@ export interface SyntaxDrillItem {
   scenario: string; // short situational context
   instruction: string; // concise syntax task
   starterSQL?: string;
+  setupSQL?: string; // idempotent DDL/pre-requisites executed before user query
   solutionSQL: string;
   hint: string;
   syntaxPattern?: RegExp | string;
